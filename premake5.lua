@@ -15,14 +15,14 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 IncludeDir = {}
 IncludeDir["GLFW"] = "ABraveFish/vendor/GLFW/include"
 IncludeDir["Glad"] = "ABraveFish/vendor/Glad/include"
--- IncludeDir["ImGui"] = "BraveFish/vendor/imgui"
+IncludeDir["ImGui"] = "ABraveFish/vendor/imgui"
 -- IncludeDir["glm"] = "ABraveFish/vendor/glm"
 IncludeDir["stb_image"] = "ABraveFish/vendor/stb_image"
 
 group "Dependencies"
 	include "ABraveFish/vendor/GLFW"
 	include "ABraveFish/vendor/Glad"
-	-- include "BraveFish/vendor/imgui"
+	include "ABraveFish/vendor/imgui"
 group ""
 
 project "ABraveFish"
@@ -56,7 +56,7 @@ project "ABraveFish"
 		"%{prj.name}/src",
 		"%{IncludeDir.GLFW}",
 		"%{IncludeDir.Glad}",
-		-- "%{IncludeDir.ImGui}",
+		"%{IncludeDir.ImGui}",
 		-- "%{IncludeDir.glm}",
 		"%{IncludeDir.stb_image}",
 	}
@@ -65,7 +65,7 @@ project "ABraveFish"
 	{ 
 		"GLFW",
 		"Glad",
-		-- "ImGui",
+		"ImGui",
 		"opengl32.lib"
 	}
 
@@ -115,8 +115,8 @@ project "BraveFish"
 	includedirs
 	{
 		"ABraveFish/src",
-		"ABraveFish/vendor",
-		-- "%{IncludeDir.glm}"
+		"ABraveFish/vendor/imgui",
+		"ABraveFish/vendor/GLFW"
 	}
 
 	links

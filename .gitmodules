@@ -1,3 +1,6 @@
 [submodule "ABraveFish/vendor/GLFW"]
 	path = ABraveFish/vendor/GLFW
 	url = https://github.com/jun-nda/glfw
+[submodule "ABraveFish/vendor/ImGui"]
+	path = ABraveFish/vendor/ImGui
+	url = https://github.com/jun-nda/imgui
