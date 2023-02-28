@@ -3,88 +3,109 @@
 #include "Core/EntryPoint.h"
 
 #include "Core/Layer.h"
+#include "renderer/Image.h"
 
 #include "include/GLFW/glfw3.h"
-
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
 
 #include <iostream>
 
 using namespace ABraveFish;
 
-class BraveFishLayer : public Layer {
-    
-
-};
-
-ABraveFish::Application* ABraveFish::CreateApplication( )
-{
-    auto app = new Application();
-
-    ImGui::CreateContext();
-
-    ImGuiIO& io = ImGui::GetIO();
-    (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
-    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport / Platform Windows
-                                                        // io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoTaskBarIcons;
-    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoMerge;
-    io.DisplaySize = ImVec2(800, 600);
-
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    // ImGui::StyleColorsClassic();
-
-    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular
-    // ones.
-    ImGuiStyle& style = ImGui::GetStyle();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        style.WindowRounding              = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+void DrawLine(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color) {
+    bool steep = false;
+    if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
+        std::swap(x0, y0);
+        std::swap(x1, y1);
+        steep = true;
     }
+    if (x0 > x1) {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+    int dx = x1 - x0;
+    int dy = y1 - y0;
 
-    GLFWwindow* window = static_cast<GLFWwindow*>(app->GetWindowHandler());
+    int derror2 = std::abs(dy) * 2;
+    int error2  = 0;
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 410");
+    int y = y0;
+    for (int x = x0; x <= x1; x++) {
+        if (steep) {
+            image.set(y, x, color);
+        } else {
+            image.set(x, y, color);
+        }
+        error2 += derror2;
+        if (error2 > dx) {
+            y += (y1 > y0 ? 1 : -1);
+            error2 -= dx * 2;
+        }
+    }
+}
 
-    while (!glfwWindowShouldClose(window)) {
-        glClearColor(1, 0, 1, 1);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplGlfw_NewFrame();
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui::NewFrame();
 
-        std::cout << "running" << std::endl;
-        
+unsigned int registeOpenGLTexture(unsigned char* buffer, uint32_t width, uint32_t height) {
+    unsigned int texid;
+
+    glGenTextures(1, &texid);
+    glBindTexture(GL_TEXTURE_2D, texid);
+
+    // Setup filtering parameters for display
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+
+    return texid;
+}
+
+class BraveFishLayer : public Layer {
+public:
+    virtual void OnUIRender() {
         bool is = true;
-        ImGui::ShowDemoWindow(&is); 
+        //ImGui::ShowDemoWindow(&is);
 
-        ImGui::Begin("yujunda");
-        //ImGui::Image();
+        m_ViewportWidth  = ImGui::GetContentRegionAvail().x;
+        m_ViewportHeight = ImGui::GetContentRegionAvail().y;
+
+        ImGui::Begin("Settings");
+        ImGui::Text("yujunda");
         ImGui::End();
 
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()); // must
+        ImGui::Begin("Render");
 
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-             GLFWwindow* backup_current_context = glfwGetCurrentContext();
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
-             glfwMakeContextCurrent(backup_current_context);
-        }
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        TGAImage image(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
+        //DrawLine(80, 120, 300, 40, image, TGAColor(255, 2, 1, 255));
 
+        //ImGui::Image(
+        //    (ImTextureID)registeOpenGLTexture(image.buffer(), image.get_width(), image.get_height()),
+        //             ImVec2(m_ViewportWidth, m_ViewportHeight)
+        //);
+        ImGui::End();
     }
 
+private:
+    uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
+};
 
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+ABraveFish::Application* ABraveFish::CreateApplication() {
+    ABraveFish::ApplicationSpecification spec;
+    spec.Name                    = "ABraveFish Soft Renderer";
+    ABraveFish::Application* app = new ABraveFish::Application(spec);
+    std::shared_ptr<Layer>   b   = std::make_shared<BraveFishLayer>();
+    app->PushLayer(b);
 
-	return app;
-} 
+    //
+    app->SetMenubarCallback([app]() {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Exit")) {
+                app->Close();
+            }
+            ImGui::EndMenu();
+        }
+    });
+
+    return app;
+}
