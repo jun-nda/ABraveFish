@@ -1,24 +1,25 @@
 #ifndef MATHS_H
 #define MATHS_H
 
+namespace ABraveFish {
 typedef struct {
     float x, y;
-} vec2_t;
+} Vec2;
 typedef struct {
     float x, y, z;
-} vec3_t;
+} Vec3;
 typedef struct {
     float x, y, z, w;
-} vec4_t;
+} Vec4;
 typedef struct {
     float x, y, z, w;
-} quat_t;
+} Quat;
 typedef struct {
     float m[3][3];
-} mat3_t;
+} Mat3;
 typedef struct {
     float m[4][4];
-} mat4_t;
+} Mat4;
 
 /* float related functions */
 float         float_min(float a, float b);
@@ -34,91 +35,92 @@ float         float_aces(float value);
 void          float_print(const char* name, float f);
 
 /* vec2 related functions */
-vec2_t vec2_new(float x, float y);
-vec2_t vec2_min(vec2_t a, vec2_t b);
-vec2_t vec2_max(vec2_t a, vec2_t b);
-vec2_t vec2_add(vec2_t a, vec2_t b);
-vec2_t vec2_sub(vec2_t a, vec2_t b);
-vec2_t vec2_mul(vec2_t v, float factor);
-vec2_t vec2_div(vec2_t v, float divisor);
-float  vec2_length(vec2_t v);
-float  vec2_edge(vec2_t start, vec2_t end, vec2_t v);
-void   vec2_print(const char* name, vec2_t v);
+Vec2   vec2_new(float x, float y);
+Vec2   vec2_min(Vec2 a, Vec2 b);
+Vec2   vec2_max(Vec2 a, Vec2 b);
+Vec2   vec2_add(Vec2 a, Vec2 b);
+Vec2   vec2_sub(Vec2 a, Vec2 b);
+Vec2   vec2_mul(Vec2 v, float factor);
+Vec2   vec2_div(Vec2 v, float divisor);
+float  vec2_length(Vec2 v);
+float  vec2_edge(Vec2 start, Vec2 end, Vec2 v);
+void   vec2_print(const char* name, Vec2 v);
 
 /* vec3 related functions */
-vec3_t vec3_new(float x, float y, float z);
-vec3_t vec3_from_vec4(vec4_t v);
-vec3_t vec3_min(vec3_t a, vec3_t b);
-vec3_t vec3_max(vec3_t a, vec3_t b);
-vec3_t vec3_add(vec3_t a, vec3_t b);
-vec3_t vec3_sub(vec3_t a, vec3_t b);
-vec3_t vec3_mul(vec3_t v, float factor);
-vec3_t vec3_div(vec3_t v, float divisor);
-vec3_t vec3_negate(vec3_t v);
-float  vec3_length(vec3_t v);
-vec3_t vec3_normalize(vec3_t v);
-float  vec3_dot(vec3_t a, vec3_t b);
-vec3_t vec3_cross(vec3_t a, vec3_t b);
-vec3_t vec3_lerp(vec3_t a, vec3_t b, float t);
-vec3_t vec3_saturate(vec3_t v);
-vec3_t vec3_modulate(vec3_t a, vec3_t b);
-void   vec3_print(const char* name, vec3_t v);
+Vec3   vec3_new(float x, float y, float z);
+Vec3   vec3_from_vec4(Vec4 v);
+Vec3   vec3_min(Vec3 a, Vec3 b);
+Vec3   vec3_max(Vec3 a, Vec3 b);
+Vec3   vec3_add(Vec3 a, Vec3 b);
+Vec3   vec3_sub(Vec3 a, Vec3 b);
+Vec3   vec3_mul(Vec3 v, float factor);
+Vec3   vec3_div(Vec3 v, float divisor);
+Vec3   vec3_negate(Vec3 v);
+float  vec3_length(Vec3 v);
+Vec3   vec3_normalize(Vec3 v);
+float  vec3_dot(Vec3 a, Vec3 b);
+Vec3   vec3_cross(Vec3 a, Vec3 b);
+Vec3   vec3_lerp(Vec3 a, Vec3 b, float t);
+Vec3   vec3_saturate(Vec3 v);
+Vec3   vec3_modulate(Vec3 a, Vec3 b);
+void   vec3_print(const char* name, Vec3 v);
 
 /* vec4 related functions */
-vec4_t vec4_new(float x, float y, float z, float w);
-vec4_t vec4_from_vec3(vec3_t v, float w);
-vec4_t vec4_add(vec4_t a, vec4_t b);
-vec4_t vec4_sub(vec4_t a, vec4_t b);
-vec4_t vec4_mul(vec4_t v, float factor);
-vec4_t vec4_div(vec4_t v, float divisor);
-vec4_t vec4_lerp(vec4_t a, vec4_t b, float t);
-vec4_t vec4_saturate(vec4_t v);
-vec4_t vec4_modulate(vec4_t a, vec4_t b);
-void   vec4_print(const char* name, vec4_t v);
+Vec4   vec4_new(float x, float y, float z, float w);
+Vec4   vec4_from_vec3(Vec3 v, float w);
+Vec4   vec4_add(Vec4 a, Vec4 b);
+Vec4   vec4_sub(Vec4 a, Vec4 b);
+Vec4   vec4_mul(Vec4 v, float factor);
+Vec4   vec4_div(Vec4 v, float divisor);
+Vec4   vec4_lerp(Vec4 a, Vec4 b, float t);
+Vec4   vec4_saturate(Vec4 v);
+Vec4   vec4_modulate(Vec4 a, Vec4 b);
+void   vec4_print(const char* name, Vec4 v);
 
 /* quat related functions */
-quat_t quat_new(float x, float y, float z, float w);
-float  quat_dot(quat_t a, quat_t b);
-float  quat_length(quat_t q);
-quat_t quat_normalize(quat_t q);
-quat_t quat_slerp(quat_t a, quat_t b, float t);
-void   quat_print(const char* name, quat_t q);
+Quat   quat_new(float x, float y, float z, float w);
+float  quat_dot(Quat a, Quat b);
+float  quat_length(Quat q);
+Quat quat_normalize(Quat q);
+Quat quat_slerp(Quat a, Quat b, float t);
+void   quat_print(const char* name, Quat q);
 
 /* mat3 related functions */
-mat3_t mat3_identity(void);
-mat3_t mat3_from_cols(vec3_t c0, vec3_t c1, vec3_t c2);
-mat3_t mat3_from_mat4(mat4_t m);
-mat3_t mat3_combine(mat3_t m[4], vec4_t weights);
-vec3_t mat3_mul_vec3(mat3_t m, vec3_t v);
-mat3_t mat3_mul_mat3(mat3_t a, mat3_t b);
-mat3_t mat3_inverse(mat3_t m);
-mat3_t mat3_transpose(mat3_t m);
-mat3_t mat3_inverse_transpose(mat3_t m);
-void   mat3_print(const char* name, mat3_t m);
+Mat3   mat3_identity(void);
+Mat3   mat3_from_cols(Vec3 c0, Vec3 c1, Vec3 c2);
+Mat3   mat3_from_mat4(Mat4 m);
+Mat3   mat3_combine(Mat3 m[4], Vec4 weights);
+Vec3   mat3_mul_vec3(Mat3 m, Vec3 v);
+Mat3   mat3_mul_mat3(Mat3 a, Mat3 b);
+Mat3   mat3_inverse(Mat3 m);
+Mat3   Mat3ranspose(Mat3 m);
+Mat3   mat3_inverse_transpose(Mat3 m);
+void   mat3_print(const char* name, Mat3 m);
 
 /* mat4 related functions */
-mat4_t mat4_identity(void);
-mat4_t mat4_from_quat(quat_t q);
-mat4_t mat4_from_trs(vec3_t t, quat_t r, vec3_t s);
-mat4_t mat4_combine(mat4_t m[4], vec4_t weights);
-vec4_t mat4_mul_vec4(mat4_t m, vec4_t v);
-mat4_t mat4_mul_mat4(mat4_t a, mat4_t b);
-mat4_t mat4_inverse(mat4_t m);
-mat4_t mat4_transpose(mat4_t m);
-mat4_t mat4_inverse_transpose(mat4_t m);
-void   mat4_print(const char* name, mat4_t m);
+Mat4   mat4_identity(void);
+Mat4   mat4_from_quat(Quat q);
+Mat4   mat4_from_trs(Vec3 t, Quat r, Vec3 s);
+Mat4   mat4_combine(Mat4 m[4], Vec4 weights);
+Vec4   mat4_mul_vec4(Mat4 m, Vec4 v);
+Mat4   mat4_mul_mat4(Mat4 a, Mat4 b);
+Mat4   mat4_inverse(Mat4 m);
+Mat4   Mat4ranspose(Mat4 m);
+Mat4   mat4_inverse_transpose(Mat4 m);
+void   mat4_print(const char* name, Mat4 m);
 
 /* transformation matrices */
-mat4_t mat4_translate(float tx, float ty, float tz);
-mat4_t mat4_scale(float sx, float sy, float sz);
-mat4_t mat4_rotate(float angle, float vx, float vy, float vz);
-mat4_t mat4_rotate_x(float angle);
-mat4_t mat4_rotate_y(float angle);
-mat4_t mat4_rotate_z(float angle);
-mat4_t mat4_lookat(vec3_t eye, vec3_t target, vec3_t up);
-mat4_t mat4_ortho(float left, float right, float bottom, float top, float near, float far);
-mat4_t mat4_frustum(float left, float right, float bottom, float top, float near, float far);
-mat4_t mat4_orthographic(float right, float top, float near, float far);
-mat4_t mat4_perspective(float fovy, float aspect, float near, float far);
+Mat4   Mat4ranslate(float tx, float ty, float tz);
+Mat4   mat4_scale(float sx, float sy, float sz);
+Mat4   mat4_rotate(float angle, float vx, float vy, float vz);
+Mat4   mat4_rotate_x(float angle);
+Mat4   mat4_rotate_y(float angle);
+Mat4   mat4_rotate_z(float angle);
+Mat4   mat4_lookat(Vec3 eye, Vec3 target, Vec3 up);
+Mat4   mat4_ortho(float left, float right, float bottom, float top, float near, float far);
+Mat4   mat4_frustum(float left, float right, float bottom, float top, float near, float far);
+Mat4   mat4_orthographic(float right, float top, float near, float far);
+Mat4   mat4_perspective(float fovy, float aspect, float near, float far);
+} // namespace ABraveFish
 
 #endif

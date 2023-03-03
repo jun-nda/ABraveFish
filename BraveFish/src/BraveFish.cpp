@@ -6,12 +6,12 @@
 #include "renderer/Image.h"
 
 #include "include/GLFW/glfw3.h"
-
+#include "Core/Timer.h"
 #include <iostream>
 
 using namespace ABraveFish;
 
-void DrawLine(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color) {
+void DrawLine(int x0, int y0, int x1, int y1, TGAImage* image, TGAColor color) {
     bool steep = false;
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
         std::swap(x0, y0);
@@ -31,9 +31,9 @@ void DrawLine(int x0, int y0, int x1, int y1, TGAImage& image, TGAColor color) {
     int y = y0;
     for (int x = x0; x <= x1; x++) {
         if (steep) {
-            image.set(y, x, color);
+            image->set(y, x, color);
         } else {
-            image.set(x, y, color);
+            image->set(x, y, color);
         }
         error2 += derror2;
         if (error2 > dx) {
@@ -66,9 +66,7 @@ public:
     virtual void OnUIRender() {
         bool is = true;
         //ImGui::ShowDemoWindow(&is);
-
-        m_ViewportWidth  = ImGui::GetContentRegionAvail().x;
-        m_ViewportHeight = ImGui::GetContentRegionAvail().y;
+        Timer timer;
 
         ImGui::Begin("Settings");
         ImGui::Text("yujunda");
@@ -76,18 +74,28 @@ public:
 
         ImGui::Begin("Render");
 
-        TGAImage image(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
-        //DrawLine(80, 120, 300, 40, image, TGAColor(255, 2, 1, 255));
+        m_ViewportWidth  = ImGui::GetContentRegionAvail().x;
+        m_ViewportHeight = ImGui::GetContentRegionAvail().y; // has problem the value is too big
 
-        //ImGui::Image(
-        //    (ImTextureID)registeOpenGLTexture(image.buffer(), image.get_width(), image.get_height()),
-        //             ImVec2(m_ViewportWidth, m_ViewportHeight)
-        //);
+        std::cout << "imagebegin:" << timer.ElapsedMillis() << std::endl;
+        //if (m_Image == nullptr) {
+        m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA); 
+        //}
+        std::cout << "imageend:" << timer.ElapsedMillis() << std::endl;
+
+        DrawLine(80, 120, 300, 40, m_Image, TGAColor(255, 2, 1, 255));
+
+        ImGui::Image((ImTextureID)registeOpenGLTexture(m_Image->buffer(), m_ViewportWidth, m_ViewportHeight),
+                     ImVec2(m_ViewportWidth, m_ViewportHeight)
+        );
         ImGui::End();
+        std::cout << "imageend2:" << timer.ElapsedMillis() << std::endl;
+
     }
 
 private:
     uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
+    TGAImage* m_Image = nullptr;
 };
 
 ABraveFish::Application* ABraveFish::CreateApplication() {
