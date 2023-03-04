@@ -99,6 +99,7 @@ public:
     void           clear();
 };
 
+} // namespace ABraveFish
 #endif //__IMAGE_H__
-}
+
 
