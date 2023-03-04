@@ -24,7 +24,7 @@ public:
     Vec3            Vert(int32_t i);
     Vec2            UV(int32_t iface, int32_t nvert);
     TGAColor         Diffuse(Vec2 uv);
-    std::vector<int32_t> Face(int32_t idx);
+    std::vector<int32_t> Face(int32_t idx); // 拿到第idx个面的三个顶点数据vert的索引
 };
 } // namespace ABraveFish
 

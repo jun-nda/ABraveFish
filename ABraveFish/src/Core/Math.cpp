@@ -6,45 +6,45 @@
 #include "Math.h"
 
 namespace ABraveFish {
-/* float related functions */
+/* double related functions */
 
-float float_min(float a, float b) { return a < b ? a : b; }
+double float_min(double a, double b) { return a < b ? a : b; }
 
-float float_max(float a, float b) { return a > b ? a : b; }
+double float_max(double a, double b) { return a > b ? a : b; }
 
-float float_lerp(float a, float b, float t) { return a + (b - a) * t; }
+double float_lerp(double a, double b, double t) { return a + (b - a) * t; }
 
-float float_clamp(float f, float min, float max) { return f < min ? min : (f > max ? max : f); }
+double float_clamp(double f, double min, double max) { return f < min ? min : (f > max ? max : f); }
 
-float float_saturate(float f) { return f < 0 ? 0 : (f > 1 ? 1 : f); }
+double float_saturate(double f) { return f < 0 ? 0 : (f > 1 ? 1 : f); }
 
-float float_from_uchar(unsigned char value) { return value / 255.0f; }
+double float_from_uchar(unsigned char value) { return value / 255.0f; }
 
-unsigned char float_to_uchar(float value) { return (unsigned char)(value * 255); }
+unsigned char float_to_uchar(double value) { return (unsigned char)(value * 255); }
 
-float float_srgb2linear(float value) { return (float)pow(value, 2.2); }
+double float_srgb2linear(double value) { return (double)pow(value, 2.2); }
 
-float float_linear2srgb(float value) { return (float)pow(value, 1 / 2.2); }
+double float_linear2srgb(double value) { return (double)pow(value, 1 / 2.2); }
 
 /*
  * for aces filmic tone mapping curve, see
  * https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
  */
-float float_aces(float value) {
-    float a = 2.51f;
-    float b = 0.03f;
-    float c = 2.43f;
-    float d = 0.59f;
-    float e = 0.14f;
+double float_aces(double value) {
+    double a = 2.51f;
+    double b = 0.03f;
+    double c = 2.43f;
+    double d = 0.59f;
+    double e = 0.14f;
     value   = (value * (a * value + b)) / (value * (c * value + d) + e);
     return float_saturate(value);
 }
 
-void float_print(const char* name, float f) { printf("float %s = %f\n", name, f); }
+void float_print(const char* name, double f) { printf("double %s = %f\n", name, f); }
 
 /* vec2 related functions */
 
-Vec2 vec2_new(float x, float y) {
+Vec2 vec2_new(double x, double y) {
     Vec2 v;
     v.x = x;
     v.y = y;
@@ -52,14 +52,14 @@ Vec2 vec2_new(float x, float y) {
 }
 
 Vec2 vec2_min(Vec2 a, Vec2 b) {
-    float x = float_min(a.x, b.x);
-    float y = float_min(a.y, b.y);
+    double x = float_min(a.x, b.x);
+    double y = float_min(a.y, b.y);
     return vec2_new(x, y);
 }
 
 Vec2 vec2_max(Vec2 a, Vec2 b) {
-    float x = float_max(a.x, b.x);
-    float y = float_max(a.y, b.y);
+    double x = float_max(a.x, b.x);
+    double y = float_max(a.y, b.y);
     return vec2_new(x, y);
 }
 
@@ -67,17 +67,17 @@ Vec2 vec2_add(Vec2 a, Vec2 b) { return vec2_new(a.x + b.x, a.y + b.y); }
 
 Vec2 vec2_sub(Vec2 a, Vec2 b) { return vec2_new(a.x - b.x, a.y - b.y); }
 
-Vec2 vec2_mul(Vec2 v, float factor) { return vec2_new(v.x * factor, v.y * factor); }
+Vec2 vec2_mul(Vec2 v, double factor) { return vec2_new(v.x * factor, v.y * factor); }
 
-Vec2 vec2_div(Vec2 v, float divisor) { return vec2_mul(v, 1 / divisor); }
+Vec2 vec2_div(Vec2 v, double divisor) { return vec2_mul(v, 1 / divisor); }
 
-float vec2_length(Vec2 v) { return (float)sqrt(v.x * v.x + v.y * v.y); }
+double vec2_length(Vec2 v) { return (double)sqrt(v.x * v.x + v.y * v.y); }
 
 /*
  * for edge function, see
  * https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/rasterization-stage
  */
-float vec2_edge(Vec2 s, Vec2 e, Vec2 v) { return (v.x - s.x) * (e.y - s.y) - (v.y - s.y) * (e.x - s.x); }
+double vec2_edge(Vec2 s, Vec2 e, Vec2 v) { return (v.x - s.x) * (e.y - s.y) - (v.y - s.y) * (e.x - s.x); }
 
 void vec2_print(const char* name, Vec2 v) {
     printf("vec2 %s =\n", name);
@@ -86,7 +86,7 @@ void vec2_print(const char* name, Vec2 v) {
 
 /* vec3 related functions */
 
-Vec3 vec3_new(float x, float y, float z) {
+Vec3 vec3_new(double x, double y, double z) {
     Vec3 v;
     v.x = x;
     v.y = y;
@@ -97,16 +97,16 @@ Vec3 vec3_new(float x, float y, float z) {
 Vec3 vec3_from_vec4(Vec4 v) { return vec3_new(v.x, v.y, v.z); }
 
 Vec3 vec3_min(Vec3 a, Vec3 b) {
-    float x = float_min(a.x, b.x);
-    float y = float_min(a.y, b.y);
-    float z = float_min(a.z, b.z);
+    double x = float_min(a.x, b.x);
+    double y = float_min(a.y, b.y);
+    double z = float_min(a.z, b.z);
     return vec3_new(x, y, z);
 }
 
 Vec3 vec3_max(Vec3 a, Vec3 b) {
-    float x = float_max(a.x, b.x);
-    float y = float_max(a.y, b.y);
-    float z = float_max(a.z, b.z);
+    double x = float_max(a.x, b.x);
+    double y = float_max(a.y, b.y);
+    double z = float_max(a.z, b.z);
     return vec3_new(x, y, z);
 }
 
@@ -114,36 +114,36 @@ Vec3 vec3_add(Vec3 a, Vec3 b) { return vec3_new(a.x + b.x, a.y + b.y, a.z + b.z)
 
 Vec3 vec3_sub(Vec3 a, Vec3 b) { return vec3_new(a.x - b.x, a.y - b.y, a.z - b.z); }
 
-Vec3 vec3_mul(Vec3 v, float factor) { return vec3_new(v.x * factor, v.y * factor, v.z * factor); }
+Vec3 vec3_mul(Vec3 v, double factor) { return vec3_new(v.x * factor, v.y * factor, v.z * factor); }
 
-Vec3 vec3_div(Vec3 v, float divisor) { return vec3_mul(v, 1 / divisor); }
+Vec3 vec3_div(Vec3 v, double divisor) { return vec3_mul(v, 1 / divisor); }
 
 Vec3 vec3_negate(Vec3 v) { return vec3_new(-v.x, -v.y, -v.z); }
 
-float vec3_length(Vec3 v) { return (float)sqrt(vec3_dot(v, v)); }
+double vec3_length(Vec3 v) { return (double)sqrt(vec3_dot(v, v)); }
 
 Vec3 vec3_normalize(Vec3 v) { return vec3_div(v, vec3_length(v)); }
 
-float vec3_dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+double vec3_dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
 Vec3 vec3_cross(Vec3 a, Vec3 b) {
-    float x = a.y * b.z - a.z * b.y;
-    float y = a.z * b.x - a.x * b.z;
-    float z = a.x * b.y - a.y * b.x;
+    double x = a.y * b.z - a.z * b.y;
+    double y = a.z * b.x - a.x * b.z;
+    double z = a.x * b.y - a.y * b.x;
     return vec3_new(x, y, z);
 }
 
-Vec3 vec3_lerp(Vec3 a, Vec3 b, float t) {
-    float x = float_lerp(a.x, b.x, t);
-    float y = float_lerp(a.y, b.y, t);
-    float z = float_lerp(a.z, b.z, t);
+Vec3 vec3_lerp(Vec3 a, Vec3 b, double t) {
+    double x = float_lerp(a.x, b.x, t);
+    double y = float_lerp(a.y, b.y, t);
+    double z = float_lerp(a.z, b.z, t);
     return vec3_new(x, y, z);
 }
 
 Vec3 vec3_saturate(Vec3 v) {
-    float x = float_saturate(v.x);
-    float y = float_saturate(v.y);
-    float z = float_saturate(v.z);
+    double x = float_saturate(v.x);
+    double y = float_saturate(v.y);
+    double z = float_saturate(v.z);
     return vec3_new(x, y, z);
 }
 
@@ -156,7 +156,7 @@ void vec3_print(const char* name, Vec3 v) {
 
 /* vec4 related functions */
 
-Vec4 vec4_new(float x, float y, float z, float w) {
+Vec4 vec4_new(double x, double y, double z, double w) {
     Vec4 v;
     v.x = x;
     v.y = y;
@@ -165,29 +165,29 @@ Vec4 vec4_new(float x, float y, float z, float w) {
     return v;
 }
 
-Vec4 vec4_from_vec3(Vec3 v, float w) { return vec4_new(v.x, v.y, v.z, w); }
+Vec4 vec4_from_vec3(Vec3 v, double w) { return vec4_new(v.x, v.y, v.z, w); }
 
 Vec4 vec4_add(Vec4 a, Vec4 b) { return vec4_new(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
 
 Vec4 vec4_sub(Vec4 a, Vec4 b) { return vec4_new(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
 
-Vec4 vec4_mul(Vec4 v, float factor) { return vec4_new(v.x * factor, v.y * factor, v.z * factor, v.w * factor); }
+Vec4 vec4_mul(Vec4 v, double factor) { return vec4_new(v.x * factor, v.y * factor, v.z * factor, v.w * factor); }
 
-Vec4 vec4_div(Vec4 v, float divisor) { return vec4_mul(v, 1 / divisor); }
+Vec4 vec4_div(Vec4 v, double divisor) { return vec4_mul(v, 1 / divisor); }
 
-Vec4 vec4_lerp(Vec4 a, Vec4 b, float t) {
-    float x = float_lerp(a.x, b.x, t);
-    float y = float_lerp(a.y, b.y, t);
-    float z = float_lerp(a.z, b.z, t);
-    float w = float_lerp(a.w, b.w, t);
+Vec4 vec4_lerp(Vec4 a, Vec4 b, double t) {
+    double x = float_lerp(a.x, b.x, t);
+    double y = float_lerp(a.y, b.y, t);
+    double z = float_lerp(a.z, b.z, t);
+    double w = float_lerp(a.w, b.w, t);
     return vec4_new(x, y, z, w);
 }
 
 Vec4 vec4_saturate(Vec4 v) {
-    float x = float_saturate(v.x);
-    float y = float_saturate(v.y);
-    float z = float_saturate(v.z);
-    float w = float_saturate(v.w);
+    double x = float_saturate(v.x);
+    double y = float_saturate(v.y);
+    double z = float_saturate(v.z);
+    double w = float_saturate(v.w);
     return vec4_new(x, y, z, w);
 }
 
@@ -200,7 +200,7 @@ void vec4_print(const char* name, Vec4 v) {
 
 /* quat related functions */
 
-Quat quat_new(float x, float y, float z, float w) {
+Quat quat_new(double x, double y, double z, double w) {
     Quat q;
     q.x = x;
     q.y = y;
@@ -209,12 +209,12 @@ Quat quat_new(float x, float y, float z, float w) {
     return q;
 }
 
-float quat_dot(Quat a, Quat b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
+double quat_dot(Quat a, Quat b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
 
-float quat_length(Quat q) { return (float)sqrt(quat_dot(q, q)); }
+double quat_length(Quat q) { return (double)sqrt(quat_dot(q, q)); }
 
 Quat quat_normalize(Quat q) {
-    float factor = 1 / quat_length(q);
+    double factor = 1 / quat_length(q);
     return quat_new(q.x * factor, q.y * factor, q.z * factor, q.w * factor);
 }
 
@@ -222,29 +222,29 @@ Quat quat_normalize(Quat q) {
  * for spherical linear interpolation, see
  * 3D Math Primer for Graphics and Game Development, 2nd Edition, Chapter 8
  */
-Quat quat_slerp(Quat a, Quat b, float t) {
-    float cos_angle = quat_dot(a, b);
+Quat quat_slerp(Quat a, Quat b, double t) {
+    double cos_angle = quat_dot(a, b);
     if (cos_angle < 0) {
         b         = quat_new(-b.x, -b.y, -b.z, -b.w);
         cos_angle = -cos_angle;
     }
     if (cos_angle > 1 - EPSILON) {
-        float x = float_lerp(a.x, b.x, t);
-        float y = float_lerp(a.y, b.y, t);
-        float z = float_lerp(a.z, b.z, t);
-        float w = float_lerp(a.w, b.w, t);
+        double x = float_lerp(a.x, b.x, t);
+        double y = float_lerp(a.y, b.y, t);
+        double z = float_lerp(a.z, b.z, t);
+        double w = float_lerp(a.w, b.w, t);
         return quat_new(x, y, z, w);
     } else {
-        float angle     = (float)acos(cos_angle);
-        float sin_angle = (float)sin(angle);
-        float angle_a   = (1 - t) * angle;
-        float angle_b   = t * angle;
-        float factor_a  = (float)sin(angle_a) / sin_angle;
-        float factor_b  = (float)sin(angle_b) / sin_angle;
-        float x         = factor_a * a.x + factor_b * b.x;
-        float y         = factor_a * a.y + factor_b * b.y;
-        float z         = factor_a * a.z + factor_b * b.z;
-        float w         = factor_a * a.w + factor_b * b.w;
+        double angle     = (double)acos(cos_angle);
+        double sin_angle = (double)sin(angle);
+        double angle_a   = (1 - t) * angle;
+        double angle_b   = t * angle;
+        double factor_a  = (double)sin(angle_a) / sin_angle;
+        double factor_b  = (double)sin(angle_b) / sin_angle;
+        double x         = factor_a * a.x + factor_b * b.x;
+        double y         = factor_a * a.y + factor_b * b.y;
+        double z         = factor_a * a.z + factor_b * b.z;
+        double w         = factor_a * a.w + factor_b * b.w;
         return quat_new(x, y, z, w);
     }
 }
@@ -295,7 +295,7 @@ Mat3 mat3_from_mat4(Mat4 m) {
 
 Mat3 mat3_combine(Mat3 m[4], Vec4 weights_) {
     Mat3 combined = {{{0}}};
-    float  weights[4];
+    double  weights[4];
     int    i, r, c;
 
     weights[0] = weights_.x;
@@ -304,7 +304,7 @@ Mat3 mat3_combine(Mat3 m[4], Vec4 weights_) {
     weights[3] = weights_.w;
 
     for (i = 0; i < 4; i++) {
-        float weight = weights[i];
+        double weight = weights[i];
         if (weight > 0) {
             Mat3 source = m[i];
             for (r = 0; r < 3; r++) {
@@ -319,12 +319,12 @@ Mat3 mat3_combine(Mat3 m[4], Vec4 weights_) {
 }
 
 Vec3 mat3_mul_vec3(Mat3 m, Vec3 v) {
-    float product[3];
+    double product[3];
     int   i;
     for (i = 0; i < 3; i++) {
-        float a    = m.m[i][0] * v.x;
-        float b    = m.m[i][1] * v.y;
-        float c    = m.m[i][2] * v.z;
+        double a    = m.m[i][0] * v.x;
+        double b    = m.m[i][1] * v.y;
+        double c    = m.m[i][2] * v.z;
         product[i] = a + b + c;
     }
     return vec3_new(product[0], product[1], product[2]);
@@ -361,10 +361,10 @@ Mat3 Mat3ranspose(Mat3 m) {
  * 3D Math Primer for Graphics and Game Development, 2nd Edition, Chapter 6
  */
 
-static float mat3_determinant(Mat3 m) {
-    float a = +m.m[0][0] * (m.m[1][1] * m.m[2][2] - m.m[1][2] * m.m[2][1]);
-    float b = -m.m[0][1] * (m.m[1][0] * m.m[2][2] - m.m[1][2] * m.m[2][0]);
-    float c = +m.m[0][2] * (m.m[1][0] * m.m[2][1] - m.m[1][1] * m.m[2][0]);
+static double mat3_determinant(Mat3 m) {
+    double a = +m.m[0][0] * (m.m[1][1] * m.m[2][2] - m.m[1][2] * m.m[2][1]);
+    double b = -m.m[0][1] * (m.m[1][0] * m.m[2][2] - m.m[1][2] * m.m[2][0]);
+    double c = +m.m[0][2] * (m.m[1][0] * m.m[2][1] - m.m[1][1] * m.m[2][0]);
     return a + b + c;
 }
 
@@ -384,7 +384,7 @@ static Mat3 mat3_adjoint(Mat3 m) {
 
 Mat3 mat3_inverse_transpose(Mat3 m) {
     Mat3 adjoint, inverse_transpose;
-    float  determinant, inv_determinant;
+    double  determinant, inv_determinant;
     int    i, j;
 
     adjoint         = mat3_adjoint(m);
@@ -423,15 +423,15 @@ Mat4 mat4_identity(void) {
 
 Mat4 mat4_from_quat(Quat q) {
     Mat4 m  = mat4_identity();
-    float  xx = q.x * q.x;
-    float  xy = q.x * q.y;
-    float  xz = q.x * q.z;
-    float  xw = q.x * q.w;
-    float  yy = q.y * q.y;
-    float  yz = q.y * q.z;
-    float  yw = q.y * q.w;
-    float  zz = q.z * q.z;
-    float  zw = q.z * q.w;
+    double  xx = q.x * q.x;
+    double  xy = q.x * q.y;
+    double  xz = q.x * q.z;
+    double  xw = q.x * q.w;
+    double  yy = q.y * q.y;
+    double  yz = q.y * q.z;
+    double  yw = q.y * q.w;
+    double  zz = q.z * q.z;
+    double  zw = q.z * q.w;
 
     m.m[0][0] = 1 - 2 * (yy + zz);
     m.m[0][1] = 2 * (xy - zw);
@@ -457,7 +457,7 @@ Mat4 mat4_from_trs(Vec3 t, Quat r, Vec3 s) {
 
 Mat4 mat4_combine(Mat4 m[4], Vec4 weights_) {
     Mat4 combined = {{{0}}};
-    float  weights[4];
+    double  weights[4];
     int    i, r, c;
 
     weights[0] = weights_.x;
@@ -466,7 +466,7 @@ Mat4 mat4_combine(Mat4 m[4], Vec4 weights_) {
     weights[3] = weights_.w;
 
     for (i = 0; i < 4; i++) {
-        float weight = weights[i];
+        double weight = weights[i];
         if (weight > 0) {
             Mat4 source = m[i];
             for (r = 0; r < 4; r++) {
@@ -481,13 +481,13 @@ Mat4 mat4_combine(Mat4 m[4], Vec4 weights_) {
 }
 
 Vec4 mat4_mul_vec4(Mat4 m, Vec4 v) {
-    float product[4];
+    double product[4];
     int   i;
     for (i = 0; i < 4; i++) {
-        float a    = m.m[i][0] * v.x;
-        float b    = m.m[i][1] * v.y;
-        float c    = m.m[i][2] * v.z;
-        float d    = m.m[i][3] * v.w;
+        double a    = m.m[i][0] * v.x;
+        double b    = m.m[i][1] * v.y;
+        double c    = m.m[i][2] * v.z;
+        double d    = m.m[i][3] * v.w;
         product[i] = a + b + c + d;
     }
     return vec4_new(product[0], product[1], product[2], product[3]);
@@ -524,7 +524,7 @@ Mat4 Mat4ranspose(Mat4 m) {
  * 3D Math Primer for Graphics and Game Development, 2nd Edition, Chapter 6
  */
 
-static float mat4_minor(Mat4 m, int r, int c) {
+static double mat4_minor(Mat4 m, int r, int c) {
     Mat3 cut_down;
     int    i, j;
     for (i = 0; i < 3; i++) {
@@ -537,9 +537,9 @@ static float mat4_minor(Mat4 m, int r, int c) {
     return mat3_determinant(cut_down);
 }
 
-static float mat4_cofactor(Mat4 m, int r, int c) {
-    float sign  = (r + c) % 2 == 0 ? 1.0f : -1.0f;
-    float minor = mat4_minor(m, r, c);
+static double mat4_cofactor(Mat4 m, int r, int c) {
+    double sign  = (r + c) % 2 == 0 ? 1.0f : -1.0f;
+    double minor = mat4_minor(m, r, c);
     return sign * minor;
 }
 
@@ -556,7 +556,7 @@ static Mat4 mat4_adjoint(Mat4 m) {
 
 Mat4 mat4_inverse_transpose(Mat4 m) {
     Mat4 adjoint, inverse_transpose;
-    float  determinant, inv_determinant;
+    double  determinant, inv_determinant;
     int    i, j;
 
     adjoint     = mat4_adjoint(m);
@@ -596,7 +596,7 @@ void mat4_print(const char* name, Mat4 m) {
  *
  * see http://docs.gl/gl2/glTranslate
  */
-Mat4 Mat4ranslate(float tx, float ty, float tz) {
+Mat4 Mat4ranslate(double tx, double ty, double tz) {
     Mat4 m  = mat4_identity();
     m.m[0][3] = tx;
     m.m[1][3] = ty;
@@ -614,7 +614,7 @@ Mat4 Mat4ranslate(float tx, float ty, float tz) {
  *
  * see http://docs.gl/gl2/glScale
  */
-Mat4 mat4_scale(float sx, float sy, float sz) {
+Mat4 mat4_scale(double sx, double sy, double sz) {
     Mat4 m = mat4_identity();
     assert(sx != 0 && sy != 0 && sz != 0);
     m.m[0][0] = sx;
@@ -637,10 +637,10 @@ Mat4 mat4_scale(float sx, float sy, float sz) {
  *
  * see http://docs.gl/gl2/glRotate
  */
-Mat4 mat4_rotate(float angle, float vx, float vy, float vz) {
+Mat4 mat4_rotate(double angle, double vx, double vy, double vz) {
     Vec3 n = vec3_normalize(vec3_new(vx, vy, vz));
-    float  c = (float)cos(angle);
-    float  s = (float)sin(angle);
+    double  c = (double)cos(angle);
+    double  s = (double)sin(angle);
     Mat4 m = mat4_identity();
 
     m.m[0][0] = n.x * n.x * (1 - c) + c;
@@ -668,9 +668,9 @@ Mat4 mat4_rotate(float angle, float vx, float vy, float vz) {
  *
  * see http://www.songho.ca/opengl/gl_anglestoaxes.html
  */
-Mat4 mat4_rotate_x(float angle) {
-    float  c  = (float)cos(angle);
-    float  s  = (float)sin(angle);
+Mat4 mat4_rotate_x(double angle) {
+    double  c  = (double)cos(angle);
+    double  s  = (double)sin(angle);
     Mat4 m  = mat4_identity();
     m.m[1][1] = c;
     m.m[1][2] = -s;
@@ -689,9 +689,9 @@ Mat4 mat4_rotate_x(float angle) {
  *
  * see http://www.songho.ca/opengl/gl_anglestoaxes.html
  */
-Mat4 mat4_rotate_y(float angle) {
-    float  c  = (float)cos(angle);
-    float  s  = (float)sin(angle);
+Mat4 mat4_rotate_y(double angle) {
+    double  c  = (double)cos(angle);
+    double  s  = (double)sin(angle);
     Mat4 m  = mat4_identity();
     m.m[0][0] = c;
     m.m[0][2] = s;
@@ -710,9 +710,9 @@ Mat4 mat4_rotate_y(float angle) {
  *
  * see http://www.songho.ca/opengl/gl_anglestoaxes.html
  */
-Mat4 mat4_rotate_z(float angle) {
-    float  c  = (float)cos(angle);
-    float  s  = (float)sin(angle);
+Mat4 mat4_rotate_z(double angle) {
+    double  c  = (double)cos(angle);
+    double  s  = (double)sin(angle);
     Mat4 m  = mat4_identity();
     m.m[0][0] = c;
     m.m[0][1] = -s;
@@ -774,10 +774,10 @@ Mat4 mat4_lookat(Vec3 eye, Vec3 target, Vec3 up) {
  *
  * see http://docs.gl/gl2/glOrtho
  */
-Mat4 mat4_ortho(float left, float right, float bottom, float top, float near, float far) {
-    float  x_range = right - left;
-    float  y_range = top - bottom;
-    float  z_range = far - near;
+Mat4 mat4_ortho(double left, double right, double bottom, double top, double near, double far) {
+    double  x_range = right - left;
+    double  y_range = top - bottom;
+    double  z_range = far - near;
     Mat4 m       = mat4_identity();
     assert(x_range > 0 && y_range > 0 && z_range > 0);
     m.m[0][0] = 2 / x_range;
@@ -801,10 +801,10 @@ Mat4 mat4_ortho(float left, float right, float bottom, float top, float near, fl
  *
  * see http://docs.gl/gl2/glFrustum
  */
-Mat4 mat4_frustum(float left, float right, float bottom, float top, float near, float far) {
-    float  x_range = right - left;
-    float  y_range = top - bottom;
-    float  z_range = far - near;
+Mat4 mat4_frustum(double left, double right, double bottom, double top, double near, double far) {
+    double  x_range = right - left;
+    double  y_range = top - bottom;
+    double  z_range = far - near;
     Mat4 m       = mat4_identity();
     assert(near > 0 && far > 0);
     assert(x_range > 0 && y_range > 0 && z_range > 0);
@@ -830,14 +830,14 @@ Mat4 mat4_frustum(float left, float right, float bottom, float top, float near, 
  *   0    0         0             1
  *
  * this is the same as
- *     float left = -right;
- *     float bottom = -top;
+ *     double left = -right;
+ *     double bottom = -top;
  *     mat4_ortho(left, right, bottom, top, near, far);
  *
  * see http://www.songho.ca/opengl/gl_projectionmatrix.html
  */
-Mat4 mat4_orthographic(float right, float top, float near, float far) {
-    float  z_range = far - near;
+Mat4 mat4_orthographic(double right, double top, double near, double far) {
+    double  z_range = far - near;
     Mat4 m       = mat4_identity();
     assert(right > 0 && top > 0 && z_range > 0);
     m.m[0][0] = 1 / right;
@@ -858,18 +858,18 @@ Mat4 mat4_orthographic(float right, float top, float near, float far) {
  *                      0              0            -1           0
  *
  * this is the same as
- *     float half_h = near * (float)tan(fovy / 2);
- *     float half_w = half_h * aspect;
+ *     double half_h = near * (double)tan(fovy / 2);
+ *     double half_w = half_h * aspect;
  *     mat4_frustum(-half_w, half_w, -half_h, half_h, near, far);
  *
  * see http://www.songho.ca/opengl/gl_projectionmatrix.html
  */
-Mat4 mat4_perspective(float fovy, float aspect, float near, float far) {
-    float  z_range = far - near;
+Mat4 mat4_perspective(double fovy, double aspect, double near, double far) {
+    double  z_range = far - near;
     Mat4 m       = mat4_identity();
     assert(fovy > 0 && aspect > 0);
     assert(near > 0 && far > 0 && z_range > 0);
-    m.m[1][1] = 1 / (float)tan(fovy / 2);
+    m.m[1][1] = 1 / (double)tan(fovy / 2);
     m.m[0][0] = m.m[1][1] / aspect;
     m.m[2][2] = -(near + far) / z_range;
     m.m[2][3] = -2 * near * far / z_range;

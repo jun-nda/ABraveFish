@@ -29,7 +29,7 @@ struct TGAColor {
         unsigned char raw[4];
         unsigned int  val;
     };
-    int bytespp;
+    int32_t bytespp;
 
     TGAColor()
         : val(0)
@@ -42,7 +42,7 @@ struct TGAColor {
         , a(A)
         , bytespp(4) {}
 
-    TGAColor(int v, int bpp)
+    TGAColor(int32_t v, int32_t bpp)
         : val(v)
         , bytespp(bpp) {}
 
@@ -50,10 +50,10 @@ struct TGAColor {
         : val(c.val)
         , bytespp(c.bytespp) {}
 
-    TGAColor(const unsigned char* p, int bpp)
+    TGAColor(const unsigned char* p, int32_t bpp)
         : val(0)
         , bytespp(bpp) {
-        for (int i = 0; i < bpp; i++) {
+        for (int32_t i = 0; i < bpp; i++) {
             raw[i] = p[i];
         }
     }
@@ -70,9 +70,9 @@ struct TGAColor {
 class TGAImage {
 protected:
     unsigned char* data;
-    int            width;
-    int            height;
-    int            bytespp;
+    int32_t            width;
+    int32_t            height;
+    int32_t            bytespp;
 
     bool load_rle_data(std::ifstream& in);
     bool unload_rle_data(std::ofstream& out);
@@ -81,20 +81,20 @@ public:
     enum Format { GRAYSCALE = 1, RGB = 3, RGBA = 4 };
 
     TGAImage();
-    TGAImage(int w, int h, int bpp);
+    TGAImage(int32_t w, int32_t h, int32_t bpp);
     TGAImage(const TGAImage& img);
     bool     read_tga_file(const char* filename);
     bool     write_tga_file(const char* filename, bool rle = true);
     bool     flip_horizontally();
     bool     flip_vertically();
-    bool     scale(int w, int h);
-    TGAColor get(int x, int y);
-    bool     set(int x, int y, TGAColor c);
+    bool     scale(int32_t w, int32_t h);
+    TGAColor get(int32_t x, int32_t y);
+    bool     set(int32_t x, int32_t y, TGAColor c);
     ~TGAImage();
     TGAImage&      operator=(const TGAImage& img);
-    int            get_width();
-    int            get_height();
-    int            get_bytespp();
+    float            get_width();
+    float            get_height();
+    int32_t            get_bytespp();
     unsigned char* buffer();
     void           clear();
 };

@@ -72,7 +72,6 @@ void Application::Run() {
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
 
     while (!glfwWindowShouldClose(m_WindowHandle)) {
-        Timer timer;
         glClearColor(1, 0, 1, 1);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -119,8 +118,6 @@ void Application::Run() {
         if (opt_fullscreen)
             ImGui::PopStyleVar(2);
 
-        std::cout << "22  " << timer.ElapsedMillis() << std::endl;
-
         // DockSpace
         ImGuiIO& io = ImGui::GetIO();
         if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
@@ -128,11 +125,8 @@ void Application::Run() {
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
         }
 
-        // std::cout << "33  " << timer.ElapsedMillis() << std::endl;
         for (auto& layer : m_LayerStack)
             layer->OnUIRender();
-
-        std::cout << "ssss::"<< timer.ElapsedMillis() << std::endl;
 
         if (m_MenubarCallback) {
             if (ImGui::BeginMenuBar()) {
@@ -140,7 +134,6 @@ void Application::Run() {
                 ImGui::EndMenuBar();
             }
         }
-        std::cout << "ssss::"<< timer.ElapsedMillis() << std::endl;
 
         ImGui::End();
 
@@ -155,8 +148,6 @@ void Application::Run() {
         }
         glfwSwapBuffers(m_WindowHandle);
         glfwPollEvents();
-
-        std::cout << timer.ElapsedMillis() << std::endl;
 
         //break;
     }
