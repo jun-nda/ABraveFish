@@ -24,22 +24,22 @@ Model::Model(const char* filename)
         char               trash;
         if (!line.compare(0, 2, "v ")) {
             iss >> trash;
-            Vec3 v;
+            glm::vec3 v;
             iss >> v.x >> v.y >> v.z;
             m_Verts.push_back(v);
         } else if (!line.compare(0, 3, "vn ")) {
             iss >> trash >> trash;
-            Vec3 n;
+            glm::vec3 n;
             iss >> n.x >> n.y >> n.z;
             m_Norms.push_back(n);
         } else if (!line.compare(0, 3, "vt ")) {
             iss >> trash >> trash;
-            Vec2 uv;
+            glm::vec2 uv;
             iss >> uv.x >> uv.y;
             m_UV.push_back(uv);
         } else if (!line.compare(0, 2, "f ")) {
-            std::vector<Vec3> f;
-            Vec3              tmp;
+            std::vector<glm::vec3> f;
+            glm::vec3              tmp;
             iss >> trash;
             while (iss >> tmp.x >> trash >> tmp.y >> trash >> tmp.z) {
                 // in wavefront obj all indices start at 1, not zero
@@ -69,7 +69,7 @@ std::vector<int32_t> Model::Face(int32_t idx) {
     return face;
 }
 
-Vec3 Model::Vert(int32_t i) { return m_Verts[i]; }
+glm::vec3 Model::Vert(int32_t i) { return m_Verts[i]; }
 
 void Model::load_texture(std::string filename, const char* suffix, TGAImage& img) {
     std::string texfile(filename);
@@ -82,15 +82,15 @@ void Model::load_texture(std::string filename, const char* suffix, TGAImage& img
     }
 }
 
-TGAColor Model::Diffuse(Vec2 uv) { return m_Diffusemap.get(uv.x, uv.y); }
+TGAColor Model::Diffuse(glm::vec2 uv) { return m_Diffusemap.get(uv.x, uv.y); }
 
-Vec2 Model::UV(int32_t iface, int32_t nvert) {
+glm::vec2 Model::UV(int32_t iface, int32_t nvert) {
     int32_t idx = m_Faces[iface][nvert].y;
-    return Vec2({m_UV[idx].x * m_Diffusemap.get_width(), m_UV[idx].y * m_Diffusemap.get_height()});
+    return glm::vec2({m_UV[idx].x * m_Diffusemap.get_width(), m_UV[idx].y * m_Diffusemap.get_height()});
 }
 
-Vec3 Model::Norm(int32_t iface, int32_t nvert) {
+glm::vec3 Model::Norm(int32_t iface, int32_t nvert) {
     int32_t idx = m_Faces[iface][nvert].z;
-    return vec3_normalize(m_Norms[idx]);
+    return glm::normalize(m_Norms[idx]);
 }
 } // namespace ABraveFish

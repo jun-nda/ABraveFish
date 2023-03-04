@@ -16,7 +16,7 @@ IncludeDir = {}
 IncludeDir["GLFW"] = "ABraveFish/vendor/GLFW/include"
 IncludeDir["Glad"] = "ABraveFish/vendor/Glad/include"
 IncludeDir["ImGui"] = "ABraveFish/vendor/imgui"
--- IncludeDir["glm"] = "ABraveFish/vendor/glm"
+IncludeDir["glm"] = "ABraveFish/vendor/glm"
 IncludeDir["stb_image"] = "ABraveFish/vendor/stb_image"
 
 group "Dependencies"
@@ -57,7 +57,7 @@ project "ABraveFish"
 		"%{IncludeDir.GLFW}",
 		"%{IncludeDir.Glad}",
 		"%{IncludeDir.ImGui}",
-		-- "%{IncludeDir.glm}",
+		"%{IncludeDir.glm}",
 		"%{IncludeDir.stb_image}",
 	}
 
@@ -116,7 +116,8 @@ project "BraveFish"
 	{
 		"ABraveFish/src",
 		"ABraveFish/vendor/imgui",
-		"ABraveFish/vendor/GLFW"
+		"ABraveFish/vendor/GLFW",
+		"ABraveFish/vendor/glm"
 	}
 
 	links

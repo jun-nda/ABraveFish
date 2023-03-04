@@ -20,11 +20,13 @@ struct ApplicationSpecification {
 
 class Application {
 public:
-    Application( );
+    Application();
     Application(ApplicationSpecification spec);
     virtual ~Application();
 
-    void init();
+    static Application& Get();
+
+    void         init();
     inline void* GetWindowHandler() const { return m_WindowHandle; }
     void         SetMenubarCallback(std::function<void()>&& callback) { m_MenubarCallback = callback; }
 
@@ -33,17 +35,24 @@ public:
         layer->OnAttach();
     }
 
-    void Run( );
+    float GetTime();
+
+    void Run();
     void Shutdown();
-    void Close(){}
+    void Close() {}
 
 private:
     ApplicationSpecification m_Specification;
-    GLFWwindow* m_WindowHandle = nullptr;
+    GLFWwindow*              m_WindowHandle = nullptr;
 
     std::vector<std::shared_ptr<Layer>> m_LayerStack;
-    
+
     std::function<void()> m_MenubarCallback;
+
+private:
+    float m_TimeStep      = 0.0f;
+    float m_FrameTime     = 0.0f;
+    float m_LastFrameTime = 0.0f;
 };
 
 // To be defined in CLIENT

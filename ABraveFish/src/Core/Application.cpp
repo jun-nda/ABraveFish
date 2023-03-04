@@ -8,17 +8,23 @@
 
 #include "Renderer/Image.h"
 #include "Timer.h"
+#include "glm/glm.hpp"
 
 namespace ABraveFish {
+
+static Application* s_Instance = nullptr;
+
 Application::Application()
     : m_WindowHandle(nullptr) {
     init();
+    s_Instance = this;
 }
 
 Application::Application(ApplicationSpecification spec)
     : m_WindowHandle(nullptr)
     , m_Specification(spec) {
     init();
+    s_Instance = this;
 }
 
 Application::~Application() { Shutdown(); }
@@ -66,6 +72,8 @@ void Application::init() {
     ImGui_ImplOpenGL3_Init("#version 410");
 }
 
+float Application::GetTime() { return (float)glfwGetTime(); }
+
 void Application::Run() {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -74,6 +82,9 @@ void Application::Run() {
     while (!glfwWindowShouldClose(m_WindowHandle)) {
         glClearColor(1, 0, 1, 1);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        for (auto& layer : m_LayerStack)
+            layer->OnUpdate(m_TimeStep);
 
         ImGui_ImplGlfw_NewFrame();
         ImGui_ImplOpenGL3_NewFrame();
@@ -149,7 +160,12 @@ void Application::Run() {
         glfwSwapBuffers(m_WindowHandle);
         glfwPollEvents();
 
-        //break;
+        float time      = GetTime();
+        m_FrameTime     = time - m_LastFrameTime;
+        m_TimeStep      = glm::min<float>(m_FrameTime, 0.0333f);
+        m_LastFrameTime = time;
+
+        // break;
     }
 }
 
@@ -158,5 +174,7 @@ void Application::Shutdown() {
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 }
+
+Application& Application::Get() { return *s_Instance; }
 
 } // namespace ABraveFish

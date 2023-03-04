@@ -5,40 +5,28 @@
 #include "Core/Layer.h"
 #include "Renderer/Image.h"
 
-#include "Core/Math.h"
 #include "Core/Timer.h"
+#include "Renderer/Camera.h"
 #include "Renderer/Model.h"
 
+#include <glm/glm.hpp>
 #include <iostream>
+
 #include "Core/Timer.h"
 #include "include/GLFW/glfw3.h"
 
 using namespace ABraveFish;
 const int depth = 255;
 
-Vec3 camera(0, 0, 3);
-Vec3 light_dir(0, 0, -1); // define light_dir
+glm::vec3 light_dir(0, 0, -1); // define light_dir
 
-Vec3 m2v(Mat4 m) { return Vec3(m.m[0][0] / m.m[3][0], m.m[1][0] / m.m[3][0], m.m[2][0] / m.m[3][0]); }
+glm::mat4 viewport(int32_t w, int32_t h) {
+    glm::mat4 m(1.0f);
+    m[0][3] = w / 2.f;
+    m[1][3] = h / 2.f;
 
-Mat4 v2m(Vec3 v) {
-    Mat4 m = mat4_identity();
-    m.m[0][0] = v.x;
-    m.m[1][0] = v.y;
-    m.m[2][0] = v.z;
-    m.m[3][0] = 1.f;
-    return m;
-}
-
-Mat4 viewport(int x, int y, int w, int h) {
-    Mat4 m   = mat4_identity();
-    m.m[0][3]  = x + w / 2.f;
-    m.m[1][3] = y + h / 2.f;
-    m.m[2][3]  = depth / 2.f;
-
-    m.m[0][0] = w / 2.f;
-    m.m[1][1] = h / 2.f;
-    m.m[2][2] = depth / 2.f;
+    m[0][0] = w / 2.f;
+    m[1][1] = h / 2.f;
     return m;
 }
 
@@ -75,19 +63,16 @@ void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, TGAImage* image, T
 }
 
 // TODO:
-Vec3 Barycentric(Vec3* pts, Vec2 P) {
-    Vec3 u = vec3_cross(Vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
-                        Vec3({pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - P.y}));
-    /* `pts` and `P` has integer value as coordinates
-       so `abs(u[2])` < 1 means `u[2]` is 0, that means
-       triangle is degenerate, in this case return something with negative coordinates */
+glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
+    glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
+                             glm::vec3({pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - P.y}));
     // 面积为0的退化三角形？
     if (std::abs(u.z) < 1)
-        return Vec3({-1, 1, 1});
-    return Vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
+        return glm::vec3({-1, 1, 1});
+    return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
 }
 
-void DrawTriangle(Vec3* pts, float* zbuffer, Vec2* uv, TGAImage* image, Model* model, float intensity) {
+void DrawTriangle(glm::vec3* pts, float* zbuffer, glm::vec2* uv, TGAImage* image, Model* model, float intensity) {
     int32_t width  = image->get_width();
     int32_t height = image->get_height();
 
@@ -102,51 +87,20 @@ void DrawTriangle(Vec3* pts, float* zbuffer, Vec2* uv, TGAImage* image, Model* m
         bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)pts[i].x));
         bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)pts[i].y));
     }
-    Vec3 P;
+    glm::vec3 P(1.f);
 
     for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
         for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
-            Vec3 bc_screen = Barycentric(pts, Vec2(P.x, P.y));
+            glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
             if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
                 continue;
             if (zbuffer[int(P.x + P.y * width)] < P.z) {
                 zbuffer[int(P.x + P.y * width)] = P.z;
 
-                // alpha beta gamma,for uv
-                // Vec2 uvA = vec2_add(uv[0], vec2_mul(vec2_sub(uv[2], uv[0]), bc_screen.x));
-                // Vec2 uvB = vec2_add(uv[1], vec2_mul(vec2_sub(uv[2], uv[1]), bc_screen.y));
-                // Vec2 uvC = vec2_add(uv[2], vec2_mul(vec2_sub(uv[0], uv[2]), bc_screen.z));
-                Vec2     uvP   = vec2_add(vec2_add(vec2_mul(uv[0], bc_screen.x), vec2_mul(uv[1], bc_screen.y)),
-                                    vec2_mul(uv[2], bc_screen.z));
-                TGAColor color = model->Diffuse(uvP);
+                glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
+                TGAColor  color = model->Diffuse(uvP);
                 image->set(P.x, P.y, TGAColor(color.b * intensity, color.g * intensity, color.r * intensity, 255.f));
             }
-        }
-    }
-}
-void DrawTriangle(Vec2 t0, Vec2 t1, Vec2 t2, TGAImage* image, TGAColor color) {
-    if (t0.y == t1.y && t0.y == t2.y)
-        return; // i dont care about degenerate triangles
-    if (t0.y > t1.y)
-        std::swap(t0, t1);
-    if (t0.y > t2.y)
-        std::swap(t0, t2);
-    if (t1.y > t2.y)
-        std::swap(t1, t2);
-    int32_t total_height = t2.y - t0.y;
-    for (int32_t i = 0; i < total_height; i++) {
-        bool    second_half    = i > t1.y - t0.y || t1.y == t0.y;
-        int32_t segment_height = second_half ? t2.y - t1.y : t1.y - t0.y;
-        double  alpha          = (double)i / total_height;
-        double  beta           = (double)(i - (second_half ? t1.y - t0.y : 0)) /
-                      segment_height; // be careful: with above conditions no division by zero here
-        Vec2 A = Vec2(t0.x + (t2.x - t0.x) * alpha, t0.y + (t2.y - t0.y) * alpha);
-        Vec2 B = second_half ? Vec2(t1.x + (t2.x - t1.x) * beta, t1.y + (t2.y - t1.y) * beta)
-                             : Vec2(t0.x + (t1.x - t0.x) * beta, t0.y + (t1.y - t0.y) * beta);
-        if (A.x > B.x)
-            std::swap(A, B);
-        for (int32_t j = A.x; j <= B.x; j++) {
-            image->set(j, t0.y + i, color); // attention, due to int32_t casts t0.y+i != A.y
         }
     }
 }
@@ -170,6 +124,22 @@ unsigned int registeOpenGLTexture(unsigned char* buffer, uint32_t width, uint32_
 
 class BraveFishLayer : public Layer {
 public:
+    BraveFishLayer()
+        : m_Camera(45.0f, 0.1f, 100.0f)
+        , m_Image(nullptr) {}
+
+    virtual void OnUpdate(float ts) override {
+        m_Camera.OnUpdate(ts);
+        if (m_Image) {
+            delete m_Image;
+            m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
+            m_Camera.OnResize(m_ViewportWidth, m_ViewportHeight);
+            Render();
+        }
+
+        // m_Renderer.ResetFrameIndex();
+    }
+
     virtual void OnUIRender() {
         bool is = true;
         // ImGui::ShowDemoWindow(&is);
@@ -189,7 +159,7 @@ public:
         if (!m_Image || m_ViewportWidth != m_Image->get_width() || m_ViewportHeight != m_Image->get_height()) {
             delete m_Image;
             m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
-
+            m_Camera.OnResize(m_ViewportWidth, m_ViewportHeight);
             Render();
         }
 
@@ -203,57 +173,42 @@ public:
     }
 
     void Render() {
-        // DrawLine(80, 120, 300, 40, m_Image, TGAColor(255, 2, 1, 255));
         if (!m_Model) {
             m_Model = new Model("obj/african_head.obj");
         }
-
-        // 线框模式
-        // for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
-        //    std::vector<int32_t> face = m_Model->Face(i);
-        //    for (int32_t j = 0; j < 3; j++) {
-        //        Vec3    v0 = m_Model->Vert(face[j]);
-        //        Vec3    v1 = m_Model->Vert(face[(j + 1) % 3]);
-        //        int32_t x0 = (v0.x + 1.) * m_ViewportWidth / 2.;
-        //        int32_t y0 = (v0.y + 1.) * m_ViewportHeight / 2.;
-        //        int32_t x1 = (v1.x + 1.) * m_ViewportWidth / 2.;
-        //        int32_t y1 = (v1.y + 1.) * m_ViewportHeight / 2.;
-        //        DrawLine(x0, y0, x1, y1, m_Image, TGAColor(255, 255, 255, 255));
-        //    }
-        //}
 
         float* zbuffer = new float[m_ViewportWidth * m_ViewportHeight];
         for (int i = m_ViewportWidth * m_ViewportHeight; i--; zbuffer[i] = -std::numeric_limits<float>::max())
             ;
 
-        Mat4 Projection   = mat4_identity();
-        Mat4 ViewPort =
-            viewport(m_ViewportWidth / 8, m_ViewportHeight / 8, m_ViewportWidth * 3 / 4, m_ViewportHeight * 3 / 4);
-        Projection.m[3][2]  = -1.f / camera.z;
+        glm::mat4 Cam        = m_Camera.GetView();
+        glm::mat4 Projection = m_Camera.GetProjection();
+        glm::mat4 ViewPort   = viewport(m_ViewportWidth, m_ViewportHeight);
 
         for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
             std::vector<int32_t> face = m_Model->Face(i);
-            Vec3                 screen_coords[3];
-            Vec3                 world_coords[3];
+            glm::vec3            screen_coords[3];
+            glm::vec3            world_coords[3];
             for (int32_t j = 0; j < 3; j++) {
-                Vec3 v           = m_Model->Vert(face[j]);
-                screen_coords[j] = m2v(mat4_mul_mat4(mat4_mul_mat4(ViewPort, Projection), v2m(v)));
-                world_coords[j]  = v;
+                glm::vec3 v = m_Model->Vert(face[j]);
+                glm::vec4 temp(Projection * Cam * glm::vec4(v.x, v.y, v.z, 1.f));
+                glm::vec4 temp2  = ViewPort * temp;
+                screen_coords[j] = glm::vec3(temp2.x, temp2.y, temp2.z);
+
+                world_coords[j] = v;
             }
 
-            Vec3 norm = vec3_normalize(
-                vec3_cross(vec3_sub(world_coords[2], world_coords[1]), vec3_sub(world_coords[1], world_coords[0])));
-            double intensity = vec3_dot(norm, light_dir);
+            glm::vec3 norm =
+                glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
+            double intensity = glm::dot(norm, light_dir);
 
             if (intensity > 0) {
                 // texture
-                Vec2 uv[3];
+                glm::vec2 uv[3];
                 for (int k = 0; k < 3; k++) {
                     uv[k] = m_Model->UV(i, k);
                 }
 
-                // DrawTriangle(screen_coords[0], screen_coords[1], screen_coords[2], m_Image,
-                //             TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
                 DrawTriangle(screen_coords, zbuffer, uv, m_Image, m_Model, intensity);
             }
         }
@@ -264,8 +219,10 @@ public:
 
 private:
     uint32_t  m_ViewportWidth = 0, m_ViewportHeight = 0;
-    TGAImage* m_Image;
+    TGAImage* m_Image = nullptr;
     Model*    m_Model = nullptr;
+
+    Camera m_Camera;
 
     double m_Time = 0.f;
 };
