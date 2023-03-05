@@ -38,9 +38,11 @@ bool Camera::OnUpdate(float ts) {
     if (Input::IsKeyDown(KeyCode::W)) {
         m_Position += m_ForwardDirection * speed * ts;
         moved = true;
+        std::cout << m_Position.x << " " << m_Position.y << " " << m_Position.z << std::endl;
     } else if (Input::IsKeyDown(KeyCode::S)) {
         m_Position -= m_ForwardDirection * speed * ts;
         moved = true;
+        std::cout << m_Position.x << " " << m_Position.y << " " << m_Position.z << std::endl;
     }
     if (Input::IsKeyDown(KeyCode::A)) {
         m_Position -= rightDirection * speed * ts;
@@ -91,8 +93,18 @@ void Camera::OnResize(uint32_t width, uint32_t height) {
 float Camera::GetRotationSpeed() { return 0.3f; }
 
 void Camera::RecalculateProjection() {
-    m_Projection = glm::perspectiveFov(glm::radians(m_VerticalFOV), (float)m_ViewportWidth, (float)m_ViewportHeight,
-                                       m_NearClip, m_FarClip);
+    //m_Projection = glm::perspectiveFov(glm::radians(m_VerticalFOV), (float)m_ViewportWidth, (float)m_ViewportHeight,
+    //                                   m_NearClip, m_FarClip);
+    float aspect        = (float)m_ViewportWidth / (float)m_ViewportHeight;
+    float     z_range = m_FarClip - m_NearClip;
+    assert(m_VerticalFOV > 0 && aspect > 0);
+    assert(m_NearClip > 0 && m_FarClip > 0 && z_range > 0);
+    m_Projection[1][1] = 1 / (float)tan(m_VerticalFOV / 2);
+    m_Projection[0][0] = m_Projection[1][1] / aspect;
+    m_Projection[2][2] = -(m_NearClip + m_FarClip) / z_range;
+    m_Projection[2][3] = -2 * m_NearClip * m_FarClip / z_range;
+    m_Projection[3][2] = -1;
+    m_Projection[3][3] = 0;
     m_InverseProjection = glm::inverse(m_Projection);
 }
 
