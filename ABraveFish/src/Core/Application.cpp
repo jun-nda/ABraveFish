@@ -9,38 +9,30 @@
 #include "Renderer/Image.h"
 #include "Timer.h"
 #include "glm/glm.hpp"
+#include "Window.h"
+#include "Input.h"
 
 namespace ABraveFish {
 
 static Application* s_Instance = nullptr;
 
 Application::Application()
-    : m_WindowHandle(nullptr) {
-    init();
+    : m_Window(new Window()) {
+    Init();
     s_Instance = this;
 }
 
 Application::Application(ApplicationSpecification spec)
-    : m_WindowHandle(nullptr)
+    : m_Window(new Window(spec))
     , m_Specification(spec) {
-    init();
+    Init();
     s_Instance = this;
 }
 
 Application::~Application() { Shutdown(); }
 
-void Application::init() {
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    m_WindowHandle =
-        glfwCreateWindow(m_Specification.Width, m_Specification.Height, m_Specification.Name.c_str(), NULL, NULL);
-
-    glfwMakeContextCurrent(m_WindowHandle);
-
-    // glfwSetFramebufferSizeCallback(m_WindowHandle, framebuffer_size_callback);
+void Application::Init() {
+    m_Window->Init();
 
     ImGui::CreateContext();
 
@@ -66,10 +58,11 @@ void Application::init() {
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
-    GLFWwindow* window = static_cast<GLFWwindow*>(GetWindowHandler());
+    GLFWwindow* window = static_cast<GLFWwindow*>(GetWindow()->GetWindowHandler());
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 410");
+
 }
 
 float Application::GetTime() { return (float)glfwGetTime(); }
@@ -79,7 +72,10 @@ void Application::Run() {
 
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
 
-    while (!glfwWindowShouldClose(m_WindowHandle)) {
+    Input::SetMouseScrollCallback();
+
+
+    while (!m_Window->IsWindowShouldClose()) {
         glClearColor(1, 0, 1, 1);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -157,15 +153,14 @@ void Application::Run() {
             ImGui::RenderPlatformWindowsDefault();
             glfwMakeContextCurrent(backup_current_context);
         }
-        glfwSwapBuffers(m_WindowHandle);
-        glfwPollEvents();
+
+        m_Window->SwapBuffers();
+        m_Window->PollEvents();
 
         float time      = GetTime();
         m_FrameTime     = time - m_LastFrameTime;
         m_TimeStep      = glm::min<float>(m_FrameTime, 0.0333f);
         m_LastFrameTime = time;
-
-        // break;
     }
 }
 

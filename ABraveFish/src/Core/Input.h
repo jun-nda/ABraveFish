@@ -14,7 +14,9 @@ public:
 
     static glm::vec2 GetMousePosition();
 
+    static void SetMouseScrollCallback();
     static void SetCursorMode(CursorMode mode);
+
 };
 
-} // namespace Walnut
+} // namespace ABraveFish

@@ -9,8 +9,6 @@
 
 #include "imgui.h"
 
-struct GLFWwindow;
-
 namespace ABraveFish {
 struct ApplicationSpecification {
     std::string Name   = "ABraveFish App";
@@ -18,6 +16,7 @@ struct ApplicationSpecification {
     uint32_t    Height = 900;
 };
 
+class Window;
 class Application {
 public:
     Application();
@@ -26,8 +25,8 @@ public:
 
     static Application& Get();
 
-    void         init();
-    inline void* GetWindowHandler() const { return m_WindowHandle; }
+    void         Init();
+    Window* GetWindow() const { return m_Window; }
     void         SetMenubarCallback(std::function<void()>&& callback) { m_MenubarCallback = callback; }
 
     void PushLayer(const std::shared_ptr<Layer>& layer) {
@@ -42,13 +41,12 @@ public:
     void Close() {}
 
 private:
-    ApplicationSpecification m_Specification;
-    GLFWwindow*              m_WindowHandle = nullptr;
-
+    ApplicationSpecification            m_Specification;
     std::vector<std::shared_ptr<Layer>> m_LayerStack;
 
     std::function<void()> m_MenubarCallback;
 
+    Window* m_Window;
 private:
     float m_TimeStep      = 0.0f;
     float m_FrameTime     = 0.0f;

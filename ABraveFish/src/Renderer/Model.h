@@ -11,9 +11,9 @@ private:
     std::vector<glm::vec3>              m_Verts;
     std::vector<std::vector<glm::vec3>> m_Faces; // attention, this Vec3 means vertex/uv/normal
     std::vector<glm::vec3>              m_Norms;
-    std::vector<glm::vec2>             m_UV;
-    TGAImage                       m_Diffusemap;
-    void                           load_texture(std::string filename, const char* suffix, TGAImage& img);
+    std::vector<glm::vec2>              m_UV;
+    TGAImage                            m_Diffusemap;
+    void                                load_texture(std::string filename, const char* suffix, TGAImage& img);
 
 public:
     Model(const char* filename);
