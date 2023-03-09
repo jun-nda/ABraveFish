@@ -4,6 +4,7 @@
 #include <string>
 
 #include "GLFW/glfw3.h"
+#include "glm/glm.hpp"
 
 #include "Core/Application.h"
 
@@ -12,7 +13,16 @@ struct WindowData {
     std::string  Title;
     unsigned int Width, Height;
     bool         VSync;
-    float        offsetX, offsetY;
+
+    float curPosX, curPosY;
+    float deltaX, deltaY;
+    //// orbit
+    // bool  IsOrbiting;
+    // glm::vec2 OrbitPos;
+    // glm::vec2 OrbitDelta;
+    // glm::vec2 PressPos;
+
+    // float ReleaseTime;
 };
 
 class Window {
@@ -23,8 +33,10 @@ public:
     bool IsWindowShouldClose();
     void SwapBuffers();
     void PollEvents();
+
 public:
-    inline GLFWwindow* GetWindowHandler() { return m_WindowHandle; }
+    inline GLFWwindow*       GetWindowHandler() { return m_WindowHandle; }
+    inline const WindowData& GetWindowData() const { m_WindowData; }
 
 private:
     ApplicationSpecification m_Specification;

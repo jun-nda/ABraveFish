@@ -73,7 +73,7 @@ void Application::Run() {
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
 
     Input::SetMouseScrollCallback();
-
+    //Input::SetMouseMoveCallback();
 
     while (!m_Window->IsWindowShouldClose()) {
         glClearColor(1, 0, 1, 1);

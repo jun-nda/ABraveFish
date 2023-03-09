@@ -32,8 +32,8 @@ void Input::SetMouseScrollCallback() {
     glfwSetScrollCallback(windowHandle, [](GLFWwindow* window, double xoffset, double yoffset) { 
         WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 
-        data.offsetX = xoffset;
-        data.offsetY = yoffset;
+        //data.offsetX = xoffset;
+        //data.offsetY = yoffset;
         });
 }
 

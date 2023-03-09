@@ -10,18 +10,20 @@
 #include "Core/Timer.h"
 #include "include/GLFW/glfw3.h"
 
-//#define YUJUNDA_ORIGIN
+#define YUJUNDA_ORIGIN
 
 #if defined YUJUNDA_ORIGIN
 #include <glm/glm.hpp>
+#include "Core/Macros.h"
 #include "Renderer/Camera.h"
 #include "Renderer/Image.h"
 #include "Renderer/Model.h"
-
 #else
+#include "Renderer/Camera.h"
 #include "model.h"
 #include "tgaimage.h"
 #include "vector.h"
+
 #endif
 
 using namespace ABraveFish;
@@ -29,22 +31,46 @@ using namespace ABraveFish;
 const int depth = 255;
 
 #if defined YUJUNDA_ORIGIN
-glm::vec3   light_dir(0, 0, -1); // define light_dir
-glm::vec3   eye(0, 0, 3);
-glm::vec3   center(0, 0, 0);
+glm::vec3 light_dir(0, 0, -1); // define light_dir
+glm::vec3 eye(0, 0, 3);
+glm::vec3 center(0, 0, 0);
+
+void PrintMatrix(glm::mat4 m) {
+    std::cout << m[0][0] << " " << m[0][1] << m[0][2] << " " << m[0][3] << std::endl;
+    std::cout << m[1][0] << " " << m[1][1] << m[1][2] << " " << m[0][3] << std::endl;
+    std::cout << m[2][0] << " " << m[2][1] << m[2][2] << " " << m[0][3] << std::endl;
+    std::cout << m[3][0] << " " << m[3][1] << m[3][2] << " " << m[0][3] << std::endl;
+}
 
 glm::mat4 lookat(glm::vec3 eye, glm::vec3 center, glm::vec3 up) {
-    glm::vec3 z = glm::normalize(eye - center);
-    glm::vec3 x = glm::normalize(glm::cross(up, z));
-    glm::vec3 y = glm::normalize(glm::cross(z, x));
-    glm::mat4 res(1.f);
-    for (int i = 0; i < 3; i++) {
-        res[0][i] = x[i];
-        res[1][i] = y[i];
-        res[2][i] = z[i];
-        res[i][3] = -center[i];
-    }
-    return res;
+    glm::vec3 z_axis = glm::normalize(eye - center);
+    glm::vec3 x_axis = glm::normalize(cross(up, z_axis));
+    glm::vec3 y_axis = cross(z_axis, x_axis);
+    glm::mat4 m(1.f);
+
+    m[0] = glm::vec4(x_axis, 0.f);
+    m[1] = glm::vec4(y_axis, 0.f);
+    m[2] = glm::vec4(z_axis, 0.f);
+
+    m[0][3] = -glm::dot(x_axis, eye);
+    m[1][3] = -glm::dot(y_axis, eye);
+    m[2][3] = -glm::dot(z_axis, eye);
+
+    return m;
+}
+
+glm::mat4 perspective(float fovy, float aspect, float near, float far) {
+    float     z_range = far - near;
+    glm::mat4 m(1.f);
+    assert(fovy > 0 && aspect > 0);
+    assert(near > 0 && far > 0 && z_range > 0);
+    m[1][1] = 1 / (float)tan(fovy / 2);
+    m[0][0] = m[1][1] / aspect;
+    m[2][2] = -(near + far) / z_range;
+    m[2][3] = -2 * near * far / z_range;
+    m[3][2] = -1;
+    m[3][3] = 0;
+    return m;
 }
 
 glm::mat4 viewport(int32_t w, int32_t h) {
@@ -137,8 +163,8 @@ void DrawTriangle(std::vector<glm::vec3>& pts, int32_t* zbuffer, TGAImage* image
             if (zbuffer[idx] < P.z) {
                 zbuffer[idx] = P.z;
 
-                //glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
-                //TGAColor  color = model->Diffuse(uvP);
+                // glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
+                // TGAColor  color = model->Diffuse(uvP);
                 image->set(P.x, P.y, color);
                 // image->set(P.x, P.y, TGAColor(255.f * intensity, 255.f * intensity, 255.f * intensity, 255.f));
             }
@@ -150,6 +176,13 @@ void DrawTriangle(std::vector<glm::vec3>& pts, int32_t* zbuffer, TGAImage* image
 Vector3f light_dir(0, 0, -1); // define light_dir
 Vector3f eye(1, 1, 3);
 Vector3f center(0, 0, 0);
+
+void PrintMatrix(Matrix4x4 m) {
+    std::cout << m[0] << std::endl;
+    std::cout << m[1] << std::endl;
+    std::cout << m[2] << std::endl;
+    std::cout << m[3] << std::endl;
+}
 
 Vector3f barycentric(Vector2f* pts, Vector2f P) {
     Vector3f s[2];
@@ -262,10 +295,18 @@ unsigned int registeOpenGLTexture(unsigned char* buffer, uint32_t width, uint32_
     return texid;
 }
 
+// const glm::vec3 center(0.f, 0.f, 0.f);
+// const glm::vec3 up(0.f, 1.f, 0.f);
+// const float     radius       = 5.f;
+// const float     minRadius    = 1.f;
+// const float     azimuthAngle = TO_RADIANS(0.f);
+// const float     polarAngle   = TO_RADIANS(0.f);
+
 class BraveFishLayer : public Layer {
 public:
     BraveFishLayer()
-        : m_Image(nullptr) {}
+        : m_Image(nullptr)
+        , m_Camera(TO_RADIANS(45), 0.1f, 1000.f) {}
 
     virtual void OnUpdate(float ts) override {
         // m_Camera.OnUpdate(ts);
@@ -273,6 +314,7 @@ public:
             delete m_Image;
             m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
             // m_Camera.OnResize(m_ViewportWidth, m_ViewportHeight);
+            m_Camera.OnUpdate(ts);
             Render();
         }
 
@@ -322,85 +364,84 @@ public:
             ;
 
 #if defined YUJUNDA_ORIGIN
-        glm::mat4 ModelView = lookat(eye, center, glm::vec3(0, 1, 0));
-        glm::mat4 Projection(1.f);
-        Projection[3][2] = -1.f / eye.z;
+        glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
+        glm::mat4 Projection = perspective(TO_RADIANS(45.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
+        glm::mat4 ViewPort   = viewport(m_ViewportWidth, m_ViewportHeight);
+        PrintMatrix(Projection);
+        // glm::vec3 vertices[] = {
+        //    {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, -0.5f},
+        //    {0.5f, 0.5f, -0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
 
-        glm::mat4 ViewPort = viewport(m_ViewportWidth, m_ViewportHeight);
+        //    {-0.5f, -0.5f, 0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
+        //    {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, -0.5f, 0.5f},
 
-        glm::vec3 vertices[] = {
-            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, -0.5f},
-            {0.5f, 0.5f, -0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
+        //    {-0.5f, 0.5f, 0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
+        //    {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f},
 
-            {-0.5f, -0.5f, 0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
-            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, -0.5f, 0.5f},
+        //    {0.5f, 0.5f, 0.5f},    {0.5f, 0.5f, -0.5f},  {0.5f, -0.5f, -0.5f},
+        //    {0.5f, -0.5f, -0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
 
-            {-0.5f, 0.5f, 0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
-            {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f},
+        //    {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, 0.5f},
+        //    {0.5f, -0.5f, 0.5f},   {-0.5f, -0.5f, 0.5f}, {-0.5f, -0.5f, -0.5f},
 
-            {0.5f, 0.5f, 0.5f},    {0.5f, 0.5f, -0.5f},  {0.5f, -0.5f, -0.5f},
-            {0.5f, -0.5f, -0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
+        //    {-0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, 0.5f},
+        //    {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, 0.5f, -0.5f},
+        //};
 
-            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, 0.5f},
-            {0.5f, -0.5f, 0.5f},   {-0.5f, -0.5f, 0.5f}, {-0.5f, -0.5f, -0.5f},
+        // for (int32_t i = 0; i < 12; i += 3) {
+        //    std::vector<glm::vec3> world_coords;
+        //    std::vector<glm::vec3> screen_coords;
 
-            {-0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, 0.5f},
-            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, 0.5f, -0.5f},
-        };
+        //    for (int32_t j = 0; j < 3; j++) {
+        //        world_coords.emplace_back(vertices[i + j]);
+        //        glm::vec4 screen_coord = ViewPort * Projection * ModelView* glm::vec4(
+        //                                                  world_coords[j].x, world_coords[j].y,
+        //                                                  world_coords[j].z, 1.f);
+        //        screen_coords.emplace_back(glm::vec3(screen_coord.x, screen_coord.y, screen_coord.z));
+        //    }
 
-        for (int32_t i = 0; i < 12; i+=3) {
-            std::vector<glm::vec3> world_coords;
-            std::vector<glm::vec3> screen_coords;
+        //    DrawTriangle(screen_coords, m_Zbuffer, m_Image, TGAColor(rand() % 255, rand() % 255, rand() % 255,
+        //    255.f));
+        //}
 
+        for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
+            std::vector<int32_t> face = m_Model->Face(i);
+            glm::vec3            screen_coords[3];
+            glm::vec3            world_coords[3];
             for (int32_t j = 0; j < 3; j++) {
-                world_coords.emplace_back(vertices[i + j]);
-                glm::vec4 screen_coord =
-                     ViewPort * glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f);
-                screen_coords.emplace_back(glm::vec3(screen_coord.x, screen_coord.y, screen_coord.z));
+                glm::vec3 v = m_Model->Vert(face[j]);
+                if (i == 0) {
+                    glm::vec4 a(glm::vec4(v.x, v.y, v.z, 1.f));
+                    std::cout << a.x << " " << a.y << " " << a.z << " " << a.w << std::endl;
+                }
+                glm::vec4 clipPos =
+                    Projection * ModelView * glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f);
+                glm::vec4 ndcPos = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
+                glm::vec4 screen_coord = ViewPort * ndcPos;
+                screen_coords[j]       = (glm::vec3(screen_coord.x, screen_coord.y, screen_coord.z));
+
+                world_coords[j] = v;
             }
 
-            DrawTriangle(screen_coords, m_Zbuffer, m_Image, TGAColor(rand() % 255, rand() % 255, rand() % 255, 255.f));
+            glm::vec3 norm =
+                glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
+            double intensity = glm::dot(norm, light_dir);
+
+            if (intensity > 0) {
+                // texture
+                glm::vec2 uv[3];
+                for (int k = 0; k < 3; k++) {
+                    uv[k] = m_Model->UV(i, k);
+                }
+
+                DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
+            }
         }
-
-        //for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
-        //    std::vector<int32_t> face = m_Model->Face(i);
-        //    glm::vec3            screen_coords[3];
-        //    glm::vec3            world_coords[3];
-        //    for (int32_t j = 0; j < 3; j++) {
-        //        glm::vec3 v = m_Model->Vert(face[j]);
-        //        if (i == 0) {
-        //            glm::vec4 a(glm::vec4(v.x, v.y, v.z, 1.f));
-        //            std::cout << a.x << " " << a.y << " " << a.z << " " << a.w << std::endl;
-        //        }
-        //        glm::vec4 temp(ModelView * glm::vec4(v.x, v.y, v.z, 1.f));
-        //        // glm::vec4 temp2  temp *  (1/temp.w);
-
-        //        glm::vec4 temp3  = ViewPort * temp;
-        //        screen_coords[j] = glm::vec3(temp3.x, temp3.y, temp3.z);
-        //        screen_coords[j] =
-        //            glm::vec3((v.x + 1.f) * m_ViewportWidth / 2., (v.y + 1.f) * m_ViewportHeight / 2., 1.f);
-
-        //        world_coords[j] = v;
-        //    }
-
-        //    glm::vec3 norm =
-        //        glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
-        //    double intensity = glm::dot(norm, light_dir);
-
-        //    if (intensity > 0) {
-        //        // texture
-        //        glm::vec2 uv[3];
-        //        for (int k = 0; k < 3; k++) {
-        //            uv[k] = m_Model->UV(i, k);
-        //        }
-
-        //        DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
-        //    }
-        //}
 #else
         Matrix4x4 ModelView  = lookat(eye, center, Vector3f(0, 1, 0));
         Matrix4x4 Projection = Matrix4x4::identity();
         Projection           = perspective(TO_RADIANS(60), m_ViewportWidth / m_ViewportHeight, 0.1f, 100.f);
+        PrintMatrix(Projection);
         for (int i = 0; i < m_Model->nfaces(); i++) {
             std::vector<int> face = m_Model->face(i);
             Vector4f         clip_pos[3];
@@ -429,17 +470,17 @@ private:
     TGAImage* m_Image   = nullptr;
     Model*    m_Model   = nullptr;
     int32_t*  m_Zbuffer = nullptr;
-    // Camera    m_Camera;
+    Camera    m_Camera;
 
     double m_Time = 0.f;
 };
 
 ABraveFish::Application* ABraveFish::CreateApplication() {
     ABraveFish::ApplicationSpecification spec;
-    spec.Name                    = "ABraveFish Soft Renderer";
-    ABraveFish::Application* app = new ABraveFish::Application(spec);
-    std::shared_ptr<Layer>   b   = std::make_shared<BraveFishLayer>();
-    app->PushLayer(b);
+    spec.Name                             = "ABraveFish Soft Renderer";
+    ABraveFish::Application* app          = new ABraveFish::Application(spec);
+    std::shared_ptr<Layer>   softRenderer = std::make_shared<BraveFishLayer>();
+    app->PushLayer(softRenderer);
 
     //
     app->SetMenubarCallback([app]() {
