@@ -1,4 +1,7 @@
 ﻿
+/*
+* 空间变换部分的两个坑： 1. glm矩阵乘法是反着的。 2. games101只讲了mvp，之后还要进行透视除法。
+*/
 #include "Core/Application.h"
 #include "Core/EntryPoint.h"
 
@@ -482,63 +485,61 @@ public:
             {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, 0.5f, -0.5f},
         };
 
-        for (int32_t i = 0; i < 12; i += 3) {
-            std::vector<glm::vec3> world_coords;
-            std::vector<glm::vec3> screen_coords;
+        // for (int32_t i = 0; i < 12; i += 3) {
+        //    std::vector<glm::vec3> world_coords;
+        //    std::vector<glm::vec3> screen_coords;
 
+        //    for (int32_t j = 0; j < 3; j++) {
+        //        world_coords.emplace_back(vertices[i + j]);
+        //        glm::vec4 eye_pos = glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f) *
+        //        ModelView; glm::vec4 clip_pos = eye_pos * Projection;
+
+        //        PrintMatrix(Projection);
+        //        PrintMatrix(ModelView);
+        //        std::cout << world_coords[j].x << " " << world_coords[j].y << " " << world_coords[j].z << std::endl;
+        //        std::cout << eye_pos.x << " " << eye_pos.y << " " << eye_pos.z << " " << eye_pos.w << std::endl;
+        //        std::cout << clip_pos.x << " " << clip_pos.y << " " << clip_pos.z << " " << clip_pos.w << std::endl;
+
+        //        glm::vec3 ndc_pos =
+        //            glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
+        //        glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
+        //        screen_coords.emplace_back(screen_coord);
+        //    }
+
+        //    DrawTriangle(screen_coords, m_Zbuffer, m_Image, TGAColor(rand() % 255, rand() % 255, rand() % 255,
+        //    255.f));
+        //}
+
+        for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
+            std::vector<int32_t> face = m_Model->Face(i);
+            glm::vec3            screen_coords[3];
+            glm::vec3            world_coords[3];
             for (int32_t j = 0; j < 3; j++) {
-                world_coords.emplace_back(vertices[i + j]);
-                glm::vec4 eye_pos = glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f) * ModelView;
-                glm::vec4 clip_pos = eye_pos * Projection;
+                glm::vec3 world_pos = m_Model->Vert(face[j]);
+                glm::vec4 eye_pos   = glm::vec4(world_pos.x, world_pos.y, world_pos.z, 1.f) * ModelView;
+                glm::vec4 clipPos   = eye_pos * Projection;
 
-                PrintMatrix(Projection);
-                PrintMatrix(ModelView);
-                std::cout << world_coords[j].x << " " << world_coords[j].y << " " << world_coords[j].z << std::endl;
-                std::cout << eye_pos.x << " " << eye_pos.y << " " << eye_pos.z << " " << eye_pos.w << std::endl;
-                std::cout << clip_pos.x << " " << clip_pos.y << " " << clip_pos.z << " " << clip_pos.w << std::endl;
+                glm::vec4 ndcPos = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
+                glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
+                screen_coords[j]       = screen_coord;
 
-                glm::vec3 ndc_pos =
-                    glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
-                glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
-                screen_coords.emplace_back(screen_coord);
+                world_coords[j] = world_pos;
             }
 
-            DrawTriangle(screen_coords, m_Zbuffer, m_Image, TGAColor(rand() % 255, rand() % 255, rand() % 255, 255.f));
+            glm::vec3 norm =
+                glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
+            double intensity = glm::dot(norm, light_dir);
+
+            if (intensity > 0) {
+                // texture
+                glm::vec2 uv[3];
+                for (int k = 0; k < 3; k++) {
+                    uv[k] = m_Model->UV(i, k);
+                }
+
+                DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
+            }
         }
-
-        // for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
-        //    std::vector<int32_t> face = m_Model->Face(i);
-        //    glm::vec3            screen_coords[3];
-        //    glm::vec3            world_coords[3];
-        //    for (int32_t j = 0; j < 3; j++) {
-        //        glm::vec3 v = m_Model->Vert(face[j]);
-        //        if (i == 0) {
-        //            glm::vec4 a(glm::vec4(v.x, v.y, v.z, 1.f));
-        //            //std::cout << a.x << " " << a.y << " " << a.z << " " << a.w << std::endl;
-        //        }
-        //        glm::vec4 clipPos =
-        //            Projection * ModelView * glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f);
-        //        glm::vec4 ndcPos = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z /
-        //        clipPos.w, 1.0f); glm::vec4 screen_coord = ViewPort * ndcPos; screen_coords[j]       =
-        //        (glm::vec3(screen_coord.x, screen_coord.y, screen_coord.z));
-
-        //        world_coords[j] = v;
-        //    }
-
-        //    glm::vec3 norm =
-        //        glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
-        //    double intensity = glm::dot(norm, light_dir);
-
-        //    if (intensity > 0) {
-        //        // texture
-        //        glm::vec2 uv[3];
-        //        for (int k = 0; k < 3; k++) {
-        //            uv[k] = m_Model->UV(i, k);
-        //        }
-
-        //        DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
-        //    }
-        //}
 #else
         Matrix4x4 ModelView  = lookat(eye, center, Vector3f(0, 1, 0));
         Matrix4x4 Projection = Matrix4x4::identity();
