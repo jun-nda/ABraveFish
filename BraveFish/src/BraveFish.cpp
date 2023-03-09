@@ -31,16 +31,33 @@ using namespace ABraveFish;
 const int depth = 255;
 
 #if defined YUJUNDA_ORIGIN
-glm::vec3 light_dir(0, 0, -1); // define light_dir
-glm::vec3 eye(0, 0, 3);
-glm::vec3 center(0, 0, 0);
+glm::vec3   light_dir(0, 0, -1); // define light_dir
+glm::vec3   eye(1, 1, 3);
+glm::vec3   center(0, 0, 0);
 
 void PrintMatrix(glm::mat4 m) {
-    std::cout << m[0][0] << " " << m[0][1] << m[0][2] << " " << m[0][3] << std::endl;
-    std::cout << m[1][0] << " " << m[1][1] << m[1][2] << " " << m[0][3] << std::endl;
-    std::cout << m[2][0] << " " << m[2][1] << m[2][2] << " " << m[0][3] << std::endl;
-    std::cout << m[3][0] << " " << m[3][1] << m[3][2] << " " << m[0][3] << std::endl;
+    std::cout << m[0][0] << " " << m[0][1] << " " << m[0][2] << " " << m[0][3] << std::endl;
+    std::cout << m[1][0] << " " << m[1][1] << " " << m[1][2] << " " << m[1][3] << std::endl;
+    std::cout << m[2][0] << " " << m[2][1] << " " << m[2][2] << " " << m[2][3] << std::endl;
+    std::cout << m[3][0] << " " << m[3][1] << " " << m[3][2] << " " << m[3][3] << std::endl;
 }
+
+/*
+ * eye: the position of the eye point
+ * target: the position of the target point
+ * up: the direction of the up vector
+ *
+ * x_axis.x  x_axis.y  x_axis.z  -dot(x_axis,eye)
+ * y_axis.x  y_axis.y  y_axis.z  -dot(y_axis,eye)
+ * z_axis.x  z_axis.y  z_axis.z  -dot(z_axis,eye)
+ *        0         0         0                 1
+ *
+ * z_axis: normalize(eye-target), the backward vector
+ * x_axis: normalize(cross(up,z_axis)), the right vector
+ * y_axis: cross(z_axis,x_axis), the up vector
+ *
+ * see http://www.songho.ca/opengl/gl_camera.html
+ */
 
 glm::mat4 lookat(glm::vec3 eye, glm::vec3 center, glm::vec3 up) {
     glm::vec3 z_axis = glm::normalize(eye - center);
@@ -59,6 +76,23 @@ glm::mat4 lookat(glm::vec3 eye, glm::vec3 center, glm::vec3 up) {
     return m;
 }
 
+/*
+ * fovy: the field of view angle in the y direction, in radians
+ * aspect: the aspect ratio, defined as width divided by height
+ * near, far: the distances to the near and far depth clipping planes
+ *
+ * 1/(aspect*tan(fovy/2))              0             0           0
+ *                      0  1/tan(fovy/2)             0           0
+ *                      0              0  -(f+n)/(f-n)  -2fn/(f-n)
+ *                      0              0            -1           0
+ *
+ * this is the same as
+ *     float half_h = near * (float)tan(fovy / 2);
+ *     float half_w = half_h * aspect;
+ *     frustum(-half_w, half_w, -half_h, half_h, near, far);
+ *
+ * see http://www.songho.ca/opengl/gl_projectionmatrix.html
+ */
 glm::mat4 perspective(float fovy, float aspect, float near, float far) {
     float     z_range = far - near;
     glm::mat4 m(1.f);
@@ -73,15 +107,20 @@ glm::mat4 perspective(float fovy, float aspect, float near, float far) {
     return m;
 }
 
-glm::mat4 viewport(int32_t w, int32_t h) {
-    glm::mat4 m(1.0f);
-    m[3][0] = w / 2.f;
-    m[3][1] = h / 2.f;
-
-    m[0][0] = w / 2.f;
-    m[1][1] = h / 2.f;
-    return m;
+/*
+ * for viewport transformation, see subsection 2.12.1 of
+ * https://www.khronos.org/registry/OpenGL/specs/es/2.0/es_full_spec_2.0.pdf
+ */
+glm::vec3 viewport_transform(int width, int height, glm::vec3 ndc_coord) {
+    float x = (ndc_coord.x + 1) * 0.5f * (float)width;  /* [-1, 1] -> [0, w] */
+    float y = (ndc_coord.y + 1) * 0.5f * (float)height; /* [-1, 1] -> [0, h] */
+    float z = (ndc_coord.z + 1) * 0.5f;                 /* [-1, 1] -> [0, 1] */
+    return glm::vec3(x, y, z);
 }
+
+// glm::vec4 perspectiveDivision( glm::vec3 ) {
+//    for ()
+//}
 
 // TODO:
 glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
@@ -231,7 +270,7 @@ void triangle(Vector4f* clip_pos, float* itensity, Vector2f* uv, TGAImage* image
     Vector2f screen_coords[3];
     float    screen_depth[3];
     for (int i = 0; i < 3; i++) {
-        Vector3f win_coord = viewport_transform(800, 800, ndc_coords[i]);
+        Vector3f win_coord = viewport_transform(width, height, ndc_coords[i]);
         screen_coords[i]   = Vector2f(win_coord.x, win_coord.y);
         screen_depth[i]    = win_coord.z;
     }
@@ -269,7 +308,64 @@ void triangle(Vector4f* clip_pos, float* itensity, Vector2f* uv, TGAImage* image
                     uv[0] * barycentric_weights.x + uv[1] * barycentric_weights.y + uv[2] * barycentric_weights.z;
 
                 TGAColor color = model->diffuse(uvP);
-                image->set(P.x, P.y, TGAColor(color[0], color[0], color[0], 255.f));
+                image->set(P.x, P.y, TGAColor(color[0], color[1], color[2], 255.f));
+                // image->set(P.x, P.y, TGAColor(255.f * intensity, 255.f * intensity, 255.f * intensity, 255.f));
+            }
+        }
+    }
+}
+
+void triangle(Vector4f* clip_pos, TGAImage* image, int* zbuffer, TGAColor color) {
+    // 齐次除法 / 透视除法 (homogeneous division / perspective division)
+    Vector3f ndc_coords[3];
+    for (int i = 0; i < 3; i++)
+        ndc_coords[i] = proj<3>(clip_pos[i] / clip_pos[i][3]);
+
+    // 背面剔除
+    // if (is_back_facing(ndc_coords))
+    //    return;
+
+    int32_t width  = image->get_width();
+    int32_t height = image->get_height();
+
+    // 屏幕映射
+    Vector2f screen_coords[3];
+    float    screen_depth[3];
+    for (int i = 0; i < 3; i++) {
+        Vector3f win_coord = viewport_transform(width, height, ndc_coords[i]);
+        std::cout << win_coord.x << " " << win_coord.y << std::endl;
+        screen_coords[i] = Vector2f(win_coord.x, win_coord.y);
+        screen_depth[i]  = win_coord.z;
+    }
+
+    Vector2f bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    Vector2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+    Vector2f clamp(width - 1, height - 1);
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 2; j++) {
+            bboxmin[j] = std::max(0.f, std::min(bboxmin[j], screen_coords[i][j]));
+            bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], screen_coords[i][j]));
+        }
+    }
+
+    Vector2i P;
+
+    for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
+        for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
+            // 重心坐标
+            Vector3f barycentric_weights = barycentric(screen_coords, Vector2f(P.x, P.y));
+            if (barycentric_weights.x < 0.f || barycentric_weights.y < 0.f || barycentric_weights.z < 0.f)
+                continue;
+
+            // 深度插值
+            float frag_depth = interpolate_depth(screen_depth, barycentric_weights);
+
+            // 深度测试
+            int32_t idx = P.x + P.y * width;
+            if (zbuffer[idx] < frag_depth) {
+                zbuffer[idx] = frag_depth;
+
+                image->set(P.x, P.y, color);
                 // image->set(P.x, P.y, TGAColor(255.f * intensity, 255.f * intensity, 255.f * intensity, 255.f));
             }
         }
@@ -365,100 +461,145 @@ public:
 
 #if defined YUJUNDA_ORIGIN
         glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
-        glm::mat4 Projection = perspective(TO_RADIANS(45.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
-        glm::mat4 ViewPort   = viewport(m_ViewportWidth, m_ViewportHeight);
-        PrintMatrix(Projection);
-        // glm::vec3 vertices[] = {
-        //    {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, -0.5f},
-        //    {0.5f, 0.5f, -0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
+        glm::mat4 Projection = perspective(TO_RADIANS(60.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
+        glm::vec3 vertices[] = {
+            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, -0.5f},
+            {0.5f, 0.5f, -0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
 
-        //    {-0.5f, -0.5f, 0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
-        //    {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, -0.5f, 0.5f},
+            {-0.5f, -0.5f, 0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
+            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, -0.5f, 0.5f},
 
-        //    {-0.5f, 0.5f, 0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
-        //    {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f},
+            {-0.5f, 0.5f, 0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
+            {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f},
 
-        //    {0.5f, 0.5f, 0.5f},    {0.5f, 0.5f, -0.5f},  {0.5f, -0.5f, -0.5f},
-        //    {0.5f, -0.5f, -0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
+            {0.5f, 0.5f, 0.5f},    {0.5f, 0.5f, -0.5f},  {0.5f, -0.5f, -0.5f},
+            {0.5f, -0.5f, -0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
 
-        //    {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, 0.5f},
-        //    {0.5f, -0.5f, 0.5f},   {-0.5f, -0.5f, 0.5f}, {-0.5f, -0.5f, -0.5f},
+            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, 0.5f},
+            {0.5f, -0.5f, 0.5f},   {-0.5f, -0.5f, 0.5f}, {-0.5f, -0.5f, -0.5f},
 
-        //    {-0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, 0.5f},
-        //    {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, 0.5f, -0.5f},
-        //};
+            {-0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, 0.5f},
+            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, 0.5f, -0.5f},
+        };
 
-        // for (int32_t i = 0; i < 12; i += 3) {
-        //    std::vector<glm::vec3> world_coords;
-        //    std::vector<glm::vec3> screen_coords;
+        for (int32_t i = 0; i < 12; i += 3) {
+            std::vector<glm::vec3> world_coords;
+            std::vector<glm::vec3> screen_coords;
 
+            for (int32_t j = 0; j < 3; j++) {
+                world_coords.emplace_back(vertices[i + j]);
+                glm::vec4 eye_pos = glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f) * ModelView;
+                glm::vec4 clip_pos = eye_pos * Projection;
+
+                PrintMatrix(Projection);
+                PrintMatrix(ModelView);
+                std::cout << world_coords[j].x << " " << world_coords[j].y << " " << world_coords[j].z << std::endl;
+                std::cout << eye_pos.x << " " << eye_pos.y << " " << eye_pos.z << " " << eye_pos.w << std::endl;
+                std::cout << clip_pos.x << " " << clip_pos.y << " " << clip_pos.z << " " << clip_pos.w << std::endl;
+
+                glm::vec3 ndc_pos =
+                    glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
+                glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
+                screen_coords.emplace_back(screen_coord);
+            }
+
+            DrawTriangle(screen_coords, m_Zbuffer, m_Image, TGAColor(rand() % 255, rand() % 255, rand() % 255, 255.f));
+        }
+
+        // for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
+        //    std::vector<int32_t> face = m_Model->Face(i);
+        //    glm::vec3            screen_coords[3];
+        //    glm::vec3            world_coords[3];
         //    for (int32_t j = 0; j < 3; j++) {
-        //        world_coords.emplace_back(vertices[i + j]);
-        //        glm::vec4 screen_coord = ViewPort * Projection * ModelView* glm::vec4(
-        //                                                  world_coords[j].x, world_coords[j].y,
-        //                                                  world_coords[j].z, 1.f);
-        //        screen_coords.emplace_back(glm::vec3(screen_coord.x, screen_coord.y, screen_coord.z));
+        //        glm::vec3 v = m_Model->Vert(face[j]);
+        //        if (i == 0) {
+        //            glm::vec4 a(glm::vec4(v.x, v.y, v.z, 1.f));
+        //            //std::cout << a.x << " " << a.y << " " << a.z << " " << a.w << std::endl;
+        //        }
+        //        glm::vec4 clipPos =
+        //            Projection * ModelView * glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f);
+        //        glm::vec4 ndcPos = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z /
+        //        clipPos.w, 1.0f); glm::vec4 screen_coord = ViewPort * ndcPos; screen_coords[j]       =
+        //        (glm::vec3(screen_coord.x, screen_coord.y, screen_coord.z));
+
+        //        world_coords[j] = v;
         //    }
 
-        //    DrawTriangle(screen_coords, m_Zbuffer, m_Image, TGAColor(rand() % 255, rand() % 255, rand() % 255,
-        //    255.f));
+        //    glm::vec3 norm =
+        //        glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
+        //    double intensity = glm::dot(norm, light_dir);
+
+        //    if (intensity > 0) {
+        //        // texture
+        //        glm::vec2 uv[3];
+        //        for (int k = 0; k < 3; k++) {
+        //            uv[k] = m_Model->UV(i, k);
+        //        }
+
+        //        DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
+        //    }
         //}
-
-        for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
-            std::vector<int32_t> face = m_Model->Face(i);
-            glm::vec3            screen_coords[3];
-            glm::vec3            world_coords[3];
-            for (int32_t j = 0; j < 3; j++) {
-                glm::vec3 v = m_Model->Vert(face[j]);
-                if (i == 0) {
-                    glm::vec4 a(glm::vec4(v.x, v.y, v.z, 1.f));
-                    std::cout << a.x << " " << a.y << " " << a.z << " " << a.w << std::endl;
-                }
-                glm::vec4 clipPos =
-                    Projection * ModelView * glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f);
-                glm::vec4 ndcPos = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
-                glm::vec4 screen_coord = ViewPort * ndcPos;
-                screen_coords[j]       = (glm::vec3(screen_coord.x, screen_coord.y, screen_coord.z));
-
-                world_coords[j] = v;
-            }
-
-            glm::vec3 norm =
-                glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
-            double intensity = glm::dot(norm, light_dir);
-
-            if (intensity > 0) {
-                // texture
-                glm::vec2 uv[3];
-                for (int k = 0; k < 3; k++) {
-                    uv[k] = m_Model->UV(i, k);
-                }
-
-                DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
-            }
-        }
 #else
         Matrix4x4 ModelView  = lookat(eye, center, Vector3f(0, 1, 0));
         Matrix4x4 Projection = Matrix4x4::identity();
         Projection           = perspective(TO_RADIANS(60), m_ViewportWidth / m_ViewportHeight, 0.1f, 100.f);
-        PrintMatrix(Projection);
-        for (int i = 0; i < m_Model->nfaces(); i++) {
-            std::vector<int> face = m_Model->face(i);
-            Vector4f         clip_pos[3];
-            Vector3f         world_coords[3];
-            float            intensity[3];
-            for (int j = 0; j < 3; j++) {
-                Vector3f v      = m_Model->vert(face[j]);
-                clip_pos[j]     = Vector4f(Projection * ModelView * embed<4>(v));
-                world_coords[j] = v;
-                intensity[j]    = m_Model->normal(i, j) * light_dir;
+        // PrintMatrix(ModelView);
+
+        Vector3f vertices[] = {
+            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, -0.5f},
+            {0.5f, 0.5f, -0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
+
+            {-0.5f, -0.5f, 0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
+            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, -0.5f, 0.5f},
+
+            {-0.5f, 0.5f, 0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
+            {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f},
+
+            {0.5f, 0.5f, 0.5f},    {0.5f, 0.5f, -0.5f},  {0.5f, -0.5f, -0.5f},
+            {0.5f, -0.5f, -0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
+
+            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, 0.5f},
+            {0.5f, -0.5f, 0.5f},   {-0.5f, -0.5f, 0.5f}, {-0.5f, -0.5f, -0.5f},
+
+            {-0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, 0.5f},
+            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, 0.5f, -0.5f},
+        };
+
+        for (int32_t i = 0; i < 12; i += 3) {
+            Vector4f clip_pos[3];
+            Vector3f world_coords[3];
+            Vector4f eye_pos[3];
+            for (int32_t j = 0; j < 3; j++) {
+                world_coords[j] = vertices[i + j];
+                eye_pos[j]      = ModelView * embed<4>(world_coords[j], 1.f);
+                clip_pos[j]     = Projection * eye_pos[j];
+                PrintMatrix(Projection);
+                PrintMatrix(ModelView);
+                std::cout << embed<4>(world_coords[j], 1.f) << std::endl;
+                std::cout << eye_pos[j] << std::endl;
+                std::cout << clip_pos[j] << std::endl;
             }
-            Vector2f uv[3];
-            for (int k = 0; k < 3; k++) {
-                uv[k] = m_Model->uv(i, k);
-            }
-            triangle(clip_pos, intensity, uv, m_Image, m_Zbuffer, m_Model);
+
+            triangle(clip_pos, m_Image, m_Zbuffer, TGAColor(rand() % 255, rand() % 255, rand() % 255, 255.f));
         }
+
+        // for (int i = 0; i < m_Model->nfaces(); i++) {
+        //    std::vector<int> face = m_Model->face(i);
+        //    Vector4f         clip_pos[3];
+        //    Vector3f         world_coords[3];
+        //    float            intensity[3];
+        //    for (int j = 0; j < 3; j++) {
+        //        Vector3f v      = m_Model->vert(face[j]);
+        //        clip_pos[j]     = Vector4f(Projection * ModelView * embed<4>(v));
+        //        world_coords[j] = v;
+        //        intensity[j]    = m_Model->normal(i, j) * light_dir;
+        //    }
+        //    Vector2f uv[3];
+        //    for (int k = 0; k < 3; k++) {
+        //        uv[k] = m_Model->uv(i, k);
+        //    }
+        //    triangle(clip_pos, intensity, uv, m_Image, m_Zbuffer, m_Model);
+        //}
 #endif
 
         m_Image->flip_vertically(); // i want to have the origin at the left bottom corner of the image
