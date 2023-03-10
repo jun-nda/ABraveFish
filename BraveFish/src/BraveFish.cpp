@@ -1,7 +1,7 @@
 ﻿
 /*
-* 空间变换部分的两个坑： 1. glm矩阵乘法是反着的。 2. games101只讲了mvp，之后还要进行透视除法。
-*/
+ * 空间变换部分的两个坑： 1. glm矩阵乘法是反着的。 2. games101只讲了mvp，之后还要进行透视除法。
+ */
 #include "Core/Application.h"
 #include "Core/EntryPoint.h"
 
@@ -34,9 +34,9 @@ using namespace ABraveFish;
 const int depth = 255;
 
 #if defined YUJUNDA_ORIGIN
-glm::vec3   light_dir(0, 0, -1); // define light_dir
-glm::vec3   eye(1, 1, 3);
-glm::vec3   center(0, 0, 0);
+glm::vec3 light_dir(0, 0, -1); // define light_dir
+glm::vec3 eye(1, 1, 3);
+glm::vec3 center(0, 0, 0);
 
 void PrintMatrix(glm::mat4 m) {
     std::cout << m[0][0] << " " << m[0][1] << " " << m[0][2] << " " << m[0][3] << std::endl;
@@ -167,7 +167,7 @@ void DrawTriangle(glm::vec3* pts, int32_t* zbuffer, glm::vec2* uv, TGAImage* ima
             if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
                 continue;
             int32_t idx = P.x + P.y * width;
-            if (zbuffer[idx] < P.z) {
+            if (zbuffer[idx] > P.z) {
                 zbuffer[idx] = P.z;
 
                 glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
@@ -202,7 +202,7 @@ void DrawTriangle(std::vector<glm::vec3>& pts, int32_t* zbuffer, TGAImage* image
             if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
                 continue;
             int32_t idx = P.x + P.y * width;
-            if (zbuffer[idx] < P.z) {
+            if (zbuffer[idx] > P.z) {
                 zbuffer[idx] = P.z;
 
                 // glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
@@ -301,8 +301,9 @@ void triangle(Vector4f* clip_pos, float* itensity, Vector2f* uv, TGAImage* image
             float frag_depth = interpolate_depth(screen_depth, barycentric_weights);
 
             // 深度测试
+            // 近~远 0~1
             int32_t idx = P.x + P.y * width;
-            if (zbuffer[idx] < frag_depth) {
+            if (zbuffer[idx] > frag_depth) {
                 zbuffer[idx] = frag_depth;
 
                 float intense = itensity[0] * barycentric_weights.x + itensity[1] * barycentric_weights.y +
@@ -324,9 +325,9 @@ void triangle(Vector4f* clip_pos, TGAImage* image, int* zbuffer, TGAColor color)
     for (int i = 0; i < 3; i++)
         ndc_coords[i] = proj<3>(clip_pos[i] / clip_pos[i][3]);
 
-    // 背面剔除
-    // if (is_back_facing(ndc_coords))
-    //    return;
+    //背面剔除
+    if (is_back_facing(ndc_coords))
+        return;
 
     int32_t width  = image->get_width();
     int32_t height = image->get_height();
@@ -336,9 +337,15 @@ void triangle(Vector4f* clip_pos, TGAImage* image, int* zbuffer, TGAColor color)
     float    screen_depth[3];
     for (int i = 0; i < 3; i++) {
         Vector3f win_coord = viewport_transform(width, height, ndc_coords[i]);
-        std::cout << win_coord.x << " " << win_coord.y << std::endl;
+        // std::cout << win_coord.x << " " << win_coord.y << std::endl;
         screen_coords[i] = Vector2f(win_coord.x, win_coord.y);
         screen_depth[i]  = win_coord.z;
+    }
+
+    float recip_w[3];
+    /* reciprocals of w */
+    for (int i = 0; i < 3; i++) {
+        recip_w[i] = 1 / clip_pos[i][3];
     }
 
     Vector2f bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
@@ -365,7 +372,7 @@ void triangle(Vector4f* clip_pos, TGAImage* image, int* zbuffer, TGAColor color)
 
             // 深度测试
             int32_t idx = P.x + P.y * width;
-            if (zbuffer[idx] < frag_depth) {
+            if (zbuffer[idx] > frag_depth) {
                 zbuffer[idx] = frag_depth;
 
                 image->set(P.x, P.y, color);
@@ -457,87 +464,125 @@ public:
             m_Model = new Model("obj/african_head/african_head.obj");
         }
 
-        delete[] m_Zbuffer;
-        m_Zbuffer = new int32_t[m_ViewportWidth * m_ViewportHeight];
-        for (int i = m_ViewportWidth * m_ViewportHeight; i--; m_Zbuffer[i] = -std::numeric_limits<float>::max())
-            ;
+        //if (!m_Zbuffer) {
+        //    delete[] m_Zbuffer;
+        //    m_Zbuffer = nullptr;
+            m_Zbuffer = new int32_t[m_ViewportWidth * m_ViewportHeight];
+            for (int i = m_ViewportWidth * m_ViewportHeight; i--; m_Zbuffer[i] = 10000.f)
+                ;
+        //}
 
 #if defined YUJUNDA_ORIGIN
         glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
         glm::mat4 Projection = perspective(TO_RADIANS(60.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
-        glm::vec3 vertices[] = {
-            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, -0.5f},
-            {0.5f, 0.5f, -0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
 
-            {-0.5f, -0.5f, 0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
-            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, -0.5f, 0.5f},
+        bool isCube = false;
+        if (isCube) {
+            glm::vec3 vertices[] = {
+                // Back face
+                {-0.5f, -0.5f, -0.5f}, // Bottom-left
+                {0.5f, 0.5f, -0.5f},   // top-right
+                {0.5f, -0.5f, -0.5f},  // bottom-right
+                {0.5f, 0.5f, -0.5f},   // top-right
+                {-0.5f, -0.5f, -0.5f}, // bottom-left
+                {-0.5f, 0.5f, -0.5f},  // top-left
 
-            {-0.5f, 0.5f, 0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
-            {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f},
+                // Front face
+                {0.5f, -0.5f, 0.5},   // bottom-left
+                {0.5f, -0.5f, 0.5f},  // bottom-right
+                {0.5f, 0.5f, 0.5f},   // top-right
+                {0.5f, 0.5f, 0.5f},   // top-right
+                {-0.5f, 0.5f, 0.5f},  // top-left
+                {-0.5f, -0.5f, 0.5f}, // bottom-left
 
-            {0.5f, 0.5f, 0.5f},    {0.5f, 0.5f, -0.5f},  {0.5f, -0.5f, -0.5f},
-            {0.5f, -0.5f, -0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
+                // Left face
+                {-0.5f, 0.5f, 0.5f},   // top-right
+                {-0.5f, 0.5f, -0.5f},  // top-left
+                {-0.5f, -0.5f, -0.5f}, // bottom-left
+                {-0.5f, -0.5f, -0.5f}, // bottom-left
+                {-0.5f, -0.5f, 0.5f},  // bottom-right
+                {-0.5f, 0.5f, 0.5f},   // top-right
 
-            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, 0.5f},
-            {0.5f, -0.5f, 0.5f},   {-0.5f, -0.5f, 0.5f}, {-0.5f, -0.5f, -0.5f},
+                // Right face
+                {0.5f, 0.5f, 0.5f},   // top-left
+                {0.5f, -0.5f, -0.5f}, // bottom-right
+                {0.5f, 0.5f, -0.5f},  // top-right
+                {0.5f, -0.5f, -0.5f}, // bottom-right
+                {0.5f, 0.5f, 0.5f},   // top-left
+                {0.5f, -0.5f, 0.5f},  // bottom-left
 
-            {-0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, 0.5f},
-            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, 0.5f, -0.5f},
-        };
+                // Bottom face
+                {-0.5f, -0.5f, -0.5f}, // top-right
+                {0.5f, -0.5f, -0.5f},  // top-left
+                {0.5f, -0.5f, 0.5f},   // bottom-left
+                {0.5f, -0.5f, 0.5f},   // bottom-left
+                {-0.5f, -0.5f, 0.5f},  // bottom-right
+                {-0.5f, -0.5f, -0.5f}, // top-right
 
-        // for (int32_t i = 0; i < 12; i += 3) {
-        //    std::vector<glm::vec3> world_coords;
-        //    std::vector<glm::vec3> screen_coords;
+                // Top face
+                {-0.5f, 0.5f, -0.5f}, // top-left
+                {0.5f, 0.5f, 0.5f},   // bottom-right
+                {0.5f, 0.5f, -0.5f},  // top-right
+                {0.5f, 0.5f, 0.5f},   // bottom-right
+                {-0.5f, 0.5f, -0.5f}, // top-left
+                {-0.5f, 0.5f, 0.5f},  // bottom-left
+            };
 
-        //    for (int32_t j = 0; j < 3; j++) {
-        //        world_coords.emplace_back(vertices[i + j]);
-        //        glm::vec4 eye_pos = glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f) *
-        //        ModelView; glm::vec4 clip_pos = eye_pos * Projection;
+            for (int32_t i = 0; i < 36; i += 3) {
+                std::vector<glm::vec3> world_coords;
+                std::vector<glm::vec3> screen_coords;
 
-        //        PrintMatrix(Projection);
-        //        PrintMatrix(ModelView);
-        //        std::cout << world_coords[j].x << " " << world_coords[j].y << " " << world_coords[j].z << std::endl;
-        //        std::cout << eye_pos.x << " " << eye_pos.y << " " << eye_pos.z << " " << eye_pos.w << std::endl;
-        //        std::cout << clip_pos.x << " " << clip_pos.y << " " << clip_pos.z << " " << clip_pos.w << std::endl;
+                for (int32_t j = 0; j < 3; j++) {
+                    world_coords.emplace_back(vertices[i + j]);
+                    glm::vec4 eye_pos =
+                        glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f) * ModelView;
+                    glm::vec4 clip_pos = eye_pos * Projection;
 
-        //        glm::vec3 ndc_pos =
-        //            glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
-        //        glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
-        //        screen_coords.emplace_back(screen_coord);
-        //    }
+                    PrintMatrix(Projection);
+                    PrintMatrix(ModelView);
+                    std::cout << world_coords[j].x << " " << world_coords[j].y << " " << world_coords[j].z << std::endl;
+                    std::cout << eye_pos.x << " " << eye_pos.y << " " << eye_pos.z << " " << eye_pos.w << std::endl;
+                    std::cout << clip_pos.x << " " << clip_pos.y << " " << clip_pos.z << " " << clip_pos.w << std::endl;
 
-        //    DrawTriangle(screen_coords, m_Zbuffer, m_Image, TGAColor(rand() % 255, rand() % 255, rand() % 255,
-        //    255.f));
-        //}
-
-        for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
-            std::vector<int32_t> face = m_Model->Face(i);
-            glm::vec3            screen_coords[3];
-            glm::vec3            world_coords[3];
-            for (int32_t j = 0; j < 3; j++) {
-                glm::vec3 world_pos = m_Model->Vert(face[j]);
-                glm::vec4 eye_pos   = glm::vec4(world_pos.x, world_pos.y, world_pos.z, 1.f) * ModelView;
-                glm::vec4 clipPos   = eye_pos * Projection;
-
-                glm::vec4 ndcPos = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
-                glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
-                screen_coords[j]       = screen_coord;
-
-                world_coords[j] = world_pos;
+                    glm::vec3 ndc_pos =
+                        glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
+                    glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
+                    screen_coords.emplace_back(screen_coord);
+                }
+                TGAColor color = TGAColor(i / 36.f * 255, i / 36.f * 255, i / 36.f * 255, 255.f);
+                DrawTriangle(screen_coords, m_Zbuffer, m_Image, color);
             }
+        } else {
+            for (int32_t i = 0; i < m_Model->GetFaceCount(); i++) {
+                std::vector<int32_t> face = m_Model->Face(i);
+                glm::vec3            screen_coords[3];
+                glm::vec3            world_coords[3];
+                for (int32_t j = 0; j < 3; j++) {
+                    glm::vec3 world_pos = m_Model->Vert(face[j]);
+                    glm::vec4 eye_pos   = glm::vec4(world_pos.x, world_pos.y, world_pos.z, 1.f) * ModelView;
+                    glm::vec4 clipPos   = eye_pos * Projection;
 
-            glm::vec3 norm =
-                glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
-            double intensity = glm::dot(norm, light_dir);
+                    glm::vec4 ndcPos =
+                        glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
+                    glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
+                    screen_coords[j]       = screen_coord;
 
-            if (intensity > 0) {
-                // texture
-                glm::vec2 uv[3];
-                for (int k = 0; k < 3; k++) {
-                    uv[k] = m_Model->UV(i, k);
+                    world_coords[j] = world_pos;
                 }
 
-                DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
+                glm::vec3 norm =
+                    glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
+                double intensity = glm::dot(norm, light_dir);
+
+                if (intensity > 0) {
+                    // texture
+                    glm::vec2 uv[3];
+                    for (int k = 0; k < 3; k++) {
+                        uv[k] = m_Model->UV(i, k);
+                    }
+
+                    DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
+                }
             }
         }
 #else
@@ -545,62 +590,97 @@ public:
         Matrix4x4 Projection = Matrix4x4::identity();
         Projection           = perspective(TO_RADIANS(60), m_ViewportWidth / m_ViewportHeight, 0.1f, 100.f);
         // PrintMatrix(ModelView);
+        bool isCube = true;
+        if (isCube) {
+            Vector3f vertices[] = {
+                // Back face
+                {-0.5f, -0.5f, -0.5f}, // Bottom-left
+                {0.5f, 0.5f, -0.5f},   // top-right
+                {0.5f, -0.5f, -0.5f},  // bottom-right
+                {0.5f, 0.5f, -0.5f},   // top-right
+                {-0.5f, -0.5f, -0.5f}, // bottom-left
+                {-0.5f, 0.5f, -0.5f},  // top-left
 
-        Vector3f vertices[] = {
-            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, 0.5f, -0.5f},
-            {0.5f, 0.5f, -0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
+                // Front face
+                {0.5f, -0.5f, 0.5},   // bottom-left
+                {0.5f, -0.5f, 0.5f},  // bottom-right
+                {0.5f, 0.5f, 0.5f},   // top-right
+                {0.5f, 0.5f, 0.5f},   // top-right
+                {-0.5f, 0.5f, 0.5f},  // top-left
+                {-0.5f, -0.5f, 0.5f}, // bottom-left
 
-            {-0.5f, -0.5f, 0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
-            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, -0.5f, 0.5f},
+                // Left face
+                {-0.5f, 0.5f, 0.5f},   // top-right
+                {-0.5f, 0.5f, -0.5f},  // top-left
+                {-0.5f, -0.5f, -0.5f}, // bottom-left
+                {-0.5f, -0.5f, -0.5f}, // bottom-left
+                {-0.5f, -0.5f, 0.5f},  // bottom-right
+                {-0.5f, 0.5f, 0.5f},   // top-right
 
-            {-0.5f, 0.5f, 0.5f},   {-0.5f, 0.5f, -0.5f}, {-0.5f, -0.5f, -0.5f},
-            {-0.5f, -0.5f, -0.5f}, {-0.5f, -0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f},
+                // Right face
+                {0.5f, 0.5f, 0.5f},   // top-left
+                {0.5f, -0.5f, -0.5f}, // bottom-right
+                {0.5f, 0.5f, -0.5f},  // top-right
+                {0.5f, -0.5f, -0.5f}, // bottom-right
+                {0.5f, 0.5f, 0.5f},   // top-left
+                {0.5f, -0.5f, 0.5f},  // bottom-left
 
-            {0.5f, 0.5f, 0.5f},    {0.5f, 0.5f, -0.5f},  {0.5f, -0.5f, -0.5f},
-            {0.5f, -0.5f, -0.5f},  {0.5f, -0.5f, 0.5f},  {0.5f, 0.5f, 0.5f},
+                // Bottom face
+                {-0.5f, -0.5f, -0.5f}, // top-right
+                {0.5f, -0.5f, -0.5f},  // top-left
+                {0.5f, -0.5f, 0.5f},   // bottom-left
+                {0.5f, -0.5f, 0.5f},   // bottom-left
+                {-0.5f, -0.5f, 0.5f},  // bottom-right
+                {-0.5f, -0.5f, -0.5f}, // top-right
 
-            {-0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, -0.5f}, {0.5f, -0.5f, 0.5f},
-            {0.5f, -0.5f, 0.5f},   {-0.5f, -0.5f, 0.5f}, {-0.5f, -0.5f, -0.5f},
+                // Top face
+                {-0.5f, 0.5f, -0.5f}, // top-left
+                {0.5f, 0.5f, 0.5f},   // bottom-right
+                {0.5f, 0.5f, -0.5f},  // top-right
+                {0.5f, 0.5f, 0.5f},   // bottom-right
+                {-0.5f, 0.5f, -0.5f}, // top-left
+                {-0.5f, 0.5f, 0.5f},  // bottom-left
+            };
 
-            {-0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, -0.5f},  {0.5f, 0.5f, 0.5f},
-            {0.5f, 0.5f, 0.5f},    {-0.5f, 0.5f, 0.5f},  {-0.5f, 0.5f, -0.5f},
-        };
-
-        for (int32_t i = 0; i < 12; i += 3) {
-            Vector4f clip_pos[3];
-            Vector3f world_coords[3];
-            Vector4f eye_pos[3];
-            for (int32_t j = 0; j < 3; j++) {
-                world_coords[j] = vertices[i + j];
-                eye_pos[j]      = ModelView * embed<4>(world_coords[j], 1.f);
-                clip_pos[j]     = Projection * eye_pos[j];
-                PrintMatrix(Projection);
-                PrintMatrix(ModelView);
-                std::cout << embed<4>(world_coords[j], 1.f) << std::endl;
-                std::cout << eye_pos[j] << std::endl;
-                std::cout << clip_pos[j] << std::endl;
+            for (int32_t i = 0; i < 36; i += 3) {
+                Vector4f clip_pos[3];
+                Vector3f world_coords[3];
+                Vector4f eye_pos[3];
+                for (int32_t j = 0; j < 3; j++) {
+                    world_coords[j] = vertices[i + j];
+                    eye_pos[j]      = ModelView * embed<4>(world_coords[j], 1.f);
+                    clip_pos[j]     = Projection * eye_pos[j];
+                    // PrintMatrix(Projection);
+                    // PrintMatrix(ModelView);
+                    // std::cout << embed<4>(world_coords[j], 1.f) << std::endl;
+                    // std::cout << eye_pos[j] << std::endl;
+                    // std::cout << clip_pos[j] << std::endl;
+                }
+                TGAColor color = TGAColor(i / 36.f * 255, i / 36.f * 255, i / 36.f * 255, 255.f);
+                // if ()
+                std::cout << (float)color[0] << " " << (float)color[1] << " " << (float)color[2] << " "
+                          << (float)color[3] << std::endl;
+                triangle(clip_pos, m_Image, m_Zbuffer, color);
             }
-
-            triangle(clip_pos, m_Image, m_Zbuffer, TGAColor(rand() % 255, rand() % 255, rand() % 255, 255.f));
+        } else {
+            for (int i = 0; i < m_Model->nfaces(); i++) {
+                std::vector<int> face = m_Model->face(i);
+                Vector4f         clip_pos[3];
+                Vector3f         world_coords[3];
+                float            intensity[3];
+                for (int j = 0; j < 3; j++) {
+                    Vector3f v      = m_Model->vert(face[j]);
+                    clip_pos[j]     = Vector4f(Projection * ModelView * embed<4>(v));
+                    world_coords[j] = v;
+                    intensity[j]    = m_Model->normal(i, j) * light_dir;
+                }
+                Vector2f uv[3];
+                for (int k = 0; k < 3; k++) {
+                    uv[k] = m_Model->uv(i, k);
+                }
+                triangle(clip_pos, intensity, uv, m_Image, m_Zbuffer, m_Model);
+            }
         }
-
-        // for (int i = 0; i < m_Model->nfaces(); i++) {
-        //    std::vector<int> face = m_Model->face(i);
-        //    Vector4f         clip_pos[3];
-        //    Vector3f         world_coords[3];
-        //    float            intensity[3];
-        //    for (int j = 0; j < 3; j++) {
-        //        Vector3f v      = m_Model->vert(face[j]);
-        //        clip_pos[j]     = Vector4f(Projection * ModelView * embed<4>(v));
-        //        world_coords[j] = v;
-        //        intensity[j]    = m_Model->normal(i, j) * light_dir;
-        //    }
-        //    Vector2f uv[3];
-        //    for (int k = 0; k < 3; k++) {
-        //        uv[k] = m_Model->uv(i, k);
-        //    }
-        //    triangle(clip_pos, intensity, uv, m_Image, m_Zbuffer, m_Model);
-        //}
 #endif
 
         m_Image->flip_vertically(); // i want to have the origin at the left bottom corner of the image
