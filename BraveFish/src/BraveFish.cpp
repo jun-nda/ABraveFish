@@ -1,5 +1,4 @@
-﻿
-/*
+﻿/*
  * 空间变换部分的两个坑： 1. glm矩阵乘法是反着的。 2. games101只讲了mvp，之后还要进行透视除法。
  */
 #include "Core/Application.h"
@@ -19,8 +18,8 @@
 #include <glm/glm.hpp>
 #include "Core/Macros.h"
 #include "Renderer/Camera.h"
-#include "Renderer/Image.h"
-#include "Renderer/Model.h"
+#include "Renderer/RenderDevice.h"
+#include "Core/Window.h"
 #else
 #include "Renderer/Camera.h"
 #include "model.h"
@@ -34,106 +33,37 @@ using namespace ABraveFish;
 const int depth = 255;
 
 #if defined YUJUNDA_ORIGIN
+
+glm::vec3 last;
+bool      ballEnabled = true;
+
+void mouseCallback(GLFWwindow* window, int button, int action, int mods) {
+    // Whenever the left mouse button is pressed, the
+    // mouse cursor's position is stored for the arc-
+    // ball camera as a reference.
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        double curr_x = 0, curr_y = 0;
+
+        glfwGetCursorPos(window, &curr_x, &curr_y);
+
+        // last is a global vec3 variable
+        last = glm::vec3(curr_x, curr_y, -1);
+
+        // This is another global variable
+        ballEnabled = true;
+    }
+
+    // When the user releases the left mouse button,
+    // all we have to do is to reset the flag.
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+        ballEnabled = false;
+}
+
+
 glm::vec3 light_dir(0, 0, -1); // define light_dir
 glm::vec3 eye(1, 1, 3);
 glm::vec3 center(0, 0, 0);
 
-void PrintMatrix(glm::mat4 m) {
-    std::cout << m[0][0] << " " << m[0][1] << " " << m[0][2] << " " << m[0][3] << std::endl;
-    std::cout << m[1][0] << " " << m[1][1] << " " << m[1][2] << " " << m[1][3] << std::endl;
-    std::cout << m[2][0] << " " << m[2][1] << " " << m[2][2] << " " << m[2][3] << std::endl;
-    std::cout << m[3][0] << " " << m[3][1] << " " << m[3][2] << " " << m[3][3] << std::endl;
-}
-
-/*
- * eye: the position of the eye point
- * target: the position of the target point
- * up: the direction of the up vector
- *
- * x_axis.x  x_axis.y  x_axis.z  -dot(x_axis,eye)
- * y_axis.x  y_axis.y  y_axis.z  -dot(y_axis,eye)
- * z_axis.x  z_axis.y  z_axis.z  -dot(z_axis,eye)
- *        0         0         0                 1
- *
- * z_axis: normalize(eye-target), the backward vector
- * x_axis: normalize(cross(up,z_axis)), the right vector
- * y_axis: cross(z_axis,x_axis), the up vector
- *
- * see http://www.songho.ca/opengl/gl_camera.html
- */
-
-glm::mat4 lookat(glm::vec3 eye, glm::vec3 center, glm::vec3 up) {
-    glm::vec3 z_axis = glm::normalize(eye - center);
-    glm::vec3 x_axis = glm::normalize(cross(up, z_axis));
-    glm::vec3 y_axis = cross(z_axis, x_axis);
-    glm::mat4 m(1.f);
-
-    m[0] = glm::vec4(x_axis, 0.f);
-    m[1] = glm::vec4(y_axis, 0.f);
-    m[2] = glm::vec4(z_axis, 0.f);
-
-    m[0][3] = -glm::dot(x_axis, eye);
-    m[1][3] = -glm::dot(y_axis, eye);
-    m[2][3] = -glm::dot(z_axis, eye);
-
-    return m;
-}
-
-/*
- * fovy: the field of view angle in the y direction, in radians
- * aspect: the aspect ratio, defined as width divided by height
- * near, far: the distances to the near and far depth clipping planes
- *
- * 1/(aspect*tan(fovy/2))              0             0           0
- *                      0  1/tan(fovy/2)             0           0
- *                      0              0  -(f+n)/(f-n)  -2fn/(f-n)
- *                      0              0            -1           0
- *
- * this is the same as
- *     float half_h = near * (float)tan(fovy / 2);
- *     float half_w = half_h * aspect;
- *     frustum(-half_w, half_w, -half_h, half_h, near, far);
- *
- * see http://www.songho.ca/opengl/gl_projectionmatrix.html
- */
-glm::mat4 perspective(float fovy, float aspect, float near, float far) {
-    float     z_range = far - near;
-    glm::mat4 m(1.f);
-    assert(fovy > 0 && aspect > 0);
-    assert(near > 0 && far > 0 && z_range > 0);
-    m[1][1] = 1 / (float)tan(fovy / 2);
-    m[0][0] = m[1][1] / aspect;
-    m[2][2] = -(near + far) / z_range;
-    m[2][3] = -2 * near * far / z_range;
-    m[3][2] = -1;
-    m[3][3] = 0;
-    return m;
-}
-
-/*
- * for viewport transformation, see subsection 2.12.1 of
- * https://www.khronos.org/registry/OpenGL/specs/es/2.0/es_full_spec_2.0.pdf
- */
-glm::vec3 viewport_transform(int width, int height, glm::vec3 ndc_coord) {
-    float x = (ndc_coord.x + 1) * 0.5f * (float)width;  /* [-1, 1] -> [0, w] */
-    float y = (ndc_coord.y + 1) * 0.5f * (float)height; /* [-1, 1] -> [0, h] */
-    float z = (ndc_coord.z + 1) * 0.5f;                 /* [-1, 1] -> [0, 1] */
-    return glm::vec3(x, y, z);
-}
-
-// glm::vec4 perspectiveDivision( glm::vec3 ) {
-//    for ()
-//}
-
-// TODO:
-glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
-    glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
-                             glm::vec3({pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - P.y}));
-    // 面积为0的退化三角形？
-    if (std::abs(u.z) < 1)
-        return glm::vec3({-1, 1, 1});
-    return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
-}
 
 glm::vec3 Barycentric(std::vector<glm::vec3> pts, glm::vec2 P) {
     glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
@@ -142,41 +72,6 @@ glm::vec3 Barycentric(std::vector<glm::vec3> pts, glm::vec2 P) {
     if (std::abs(u.z) < 1)
         return glm::vec3({-1, 1, 1});
     return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
-}
-
-void DrawTriangle(glm::vec3* pts, int32_t* zbuffer, glm::vec2* uv, TGAImage* image, Model* model, float intensity) {
-    int32_t width  = image->get_width();
-    int32_t height = image->get_height();
-
-    // Attention: box must be int
-    int32_t bboxmin[2] = {width - 1, height - 1};
-    int32_t bboxmax[2] = {0, 0};
-    int32_t clamp[2]   = {width - 1, image->get_height() - 1};
-    for (int32_t i = 0; i < 3; i++) {
-        bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)pts[i].x));
-        bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)pts[i].y));
-
-        bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)pts[i].x));
-        bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)pts[i].y));
-    }
-    glm::vec3 P(1.f);
-
-    for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
-        for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
-            glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
-            if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
-                continue;
-            int32_t idx = P.x + P.y * width;
-            if (zbuffer[idx] > P.z) {
-                zbuffer[idx] = P.z;
-
-                glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
-                TGAColor  color = model->Diffuse(uvP);
-                image->set(P.x, P.y, TGAColor(color.b * intensity, color.g * intensity, color.r * intensity, 255.f));
-                // image->set(P.x, P.y, TGAColor(255.f * intensity, 255.f * intensity, 255.f * intensity, 255.f));
-            }
-        }
-    }
 }
 
 void DrawTriangle(std::vector<glm::vec3>& pts, int32_t* zbuffer, TGAImage* image, TGAColor color) {
@@ -414,12 +309,15 @@ public:
         : m_Image(nullptr)
         , m_Camera(TO_RADIANS(45), 0.1f, 1000.f) {}
 
+    virtual void OnAttach() override {
+        GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
+        glfwSetMouseButtonCallback(window, mouseCallback);
+    }
+
     virtual void OnUpdate(float ts) override {
-        // m_Camera.OnUpdate(ts);
         if (m_Image) {
             delete m_Image;
             m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
-            // m_Camera.OnResize(m_ViewportWidth, m_ViewportHeight);
             m_Camera.OnUpdate(ts);
             Render();
         }
@@ -446,7 +344,7 @@ public:
         if (!m_Image || m_ViewportWidth != m_Image->get_width() || m_ViewportHeight != m_Image->get_height()) {
             delete m_Image;
             m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
-            // m_Camera.OnResize(m_ViewportWidth, m_ViewportHeight);
+            m_Camera.OnResize(m_ViewportWidth, m_ViewportHeight);
             Render();
         }
 
@@ -464,17 +362,19 @@ public:
             m_Model = new Model("obj/african_head/african_head.obj");
         }
 
-        //if (!m_Zbuffer) {
+        // if (!m_Zbuffer) {
         //    delete[] m_Zbuffer;
         //    m_Zbuffer = nullptr;
-            m_Zbuffer = new int32_t[m_ViewportWidth * m_ViewportHeight];
-            for (int i = m_ViewportWidth * m_ViewportHeight; i--; m_Zbuffer[i] = 10000.f)
-                ;
-        //}
+        m_Zbuffer = new int32_t[m_ViewportWidth * m_ViewportHeight];
+        for (int i = m_ViewportWidth * m_ViewportHeight; i--; m_Zbuffer[i] = 10000.f)
+            ;
+            //}
 
 #if defined YUJUNDA_ORIGIN
-        glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
-        glm::mat4 Projection = perspective(TO_RADIANS(60.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
+        //glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
+        //glm::mat4 Projection = perspective(TO_RADIANS(60.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
+        glm::mat4 ModelView  = m_Camera.GetView();
+        glm::mat4 Projection = m_Camera.GetProjection();
 
         bool isCube = false;
         if (isCube) {
@@ -557,6 +457,8 @@ public:
                 std::vector<int32_t> face = m_Model->Face(i);
                 glm::vec3            screen_coords[3];
                 glm::vec3            world_coords[3];
+                glm::vec3            ndc_coords[3];
+                float              screen_depths[3];
                 for (int32_t j = 0; j < 3; j++) {
                     glm::vec3 world_pos = m_Model->Vert(face[j]);
                     glm::vec4 eye_pos   = glm::vec4(world_pos.x, world_pos.y, world_pos.z, 1.f) * ModelView;
@@ -564,11 +466,17 @@ public:
 
                     glm::vec4 ndcPos =
                         glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
+                    ndc_coords[j]          = ndcPos;
                     glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
                     screen_coords[j]       = screen_coord;
 
                     world_coords[j] = world_pos;
+                    screen_depths[j] = screen_coord.z;
                 }
+
+                // 背面剔除
+                if (isBackFacing(ndc_coords))
+                    continue;
 
                 glm::vec3 norm =
                     glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
@@ -581,7 +489,7 @@ public:
                         uv[k] = m_Model->UV(i, k);
                     }
 
-                    DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity);
+                    DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity, screen_depths);
                 }
             }
         }
@@ -590,7 +498,7 @@ public:
         Matrix4x4 Projection = Matrix4x4::identity();
         Projection           = perspective(TO_RADIANS(60), m_ViewportWidth / m_ViewportHeight, 0.1f, 100.f);
         // PrintMatrix(ModelView);
-        bool isCube = true;
+        bool isCube = false;
         if (isCube) {
             Vector3f vertices[] = {
                 // Back face
@@ -664,10 +572,10 @@ public:
             }
         } else {
             for (int i = 0; i < m_Model->nfaces(); i++) {
-                std::vector<int> face = m_Model->face(i);
-                Vector4f         clip_pos[3];
-                Vector3f         world_coords[3];
-                float            intensity[3];
+                std::vector<int32_t> face = m_Model->face(i);
+                Vector4f             clip_pos[3];
+                Vector3f             world_coords[3];
+                float                intensity[3];
                 for (int j = 0; j < 3; j++) {
                     Vector3f v      = m_Model->vert(face[j]);
                     clip_pos[j]     = Vector4f(Projection * ModelView * embed<4>(v));

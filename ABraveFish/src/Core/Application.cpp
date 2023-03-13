@@ -6,11 +6,11 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_opengl3_loader.h"
 
+#include "Input.h"
 #include "Renderer/Image.h"
 #include "Timer.h"
-#include "glm/glm.hpp"
 #include "Window.h"
-#include "Input.h"
+#include "glm/glm.hpp"
 
 namespace ABraveFish {
 
@@ -62,7 +62,6 @@ void Application::Init() {
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 410");
-
 }
 
 float Application::GetTime() { return (float)glfwGetTime(); }
@@ -73,7 +72,7 @@ void Application::Run() {
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
 
     Input::SetMouseScrollCallback();
-    //Input::SetMouseMoveCallback();
+    // Input::SetMouseMoveCallback();
 
     while (!m_Window->IsWindowShouldClose()) {
         glClearColor(1, 0, 1, 1);

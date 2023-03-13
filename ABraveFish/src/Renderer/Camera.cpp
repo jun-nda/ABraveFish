@@ -5,6 +5,7 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include "Core/Input.h"
+#include "RenderDevice.h"
 
 using namespace ABraveFish;
 
@@ -13,7 +14,9 @@ Camera::Camera(float verticalFOV, float nearClip, float farClip)
     , m_NearClip(nearClip)
     , m_FarClip(farClip) {
     m_ForwardDirection = glm::vec3(0, 0, -1);
-    m_Position         = glm::vec3(0, 0, 6);
+    m_Position         = glm::vec3(1, 1, 3);
+
+    RecalculateView();
 }
 
 bool Camera::OnUpdate(float ts) {
@@ -92,13 +95,13 @@ void Camera::OnResize(uint32_t width, uint32_t height) {
 float Camera::GetRotationSpeed() { return 0.3f; }
 
 void Camera::RecalculateProjection() {
-    m_Projection = glm::perspectiveFov(glm::radians(m_VerticalFOV), (float)m_ViewportWidth, (float)m_ViewportHeight,
+    m_Projection = perspective(glm::radians(m_VerticalFOV), (float)m_ViewportWidth/(float)m_ViewportHeight,
                                        m_NearClip, m_FarClip);
     m_InverseProjection = glm::inverse(m_Projection);
 }
 
 void Camera::RecalculateView() {
-    m_View        = glm::lookAt(m_Position, m_Position + m_ForwardDirection, glm::vec3(0, 1, 0));
+    m_View        = lookAt(m_Position, m_Position + m_ForwardDirection, glm::vec3(0, 1, 0));
     m_InverseView = glm::inverse(m_View);
 }
 
