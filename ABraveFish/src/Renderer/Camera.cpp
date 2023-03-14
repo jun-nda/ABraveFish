@@ -20,65 +20,66 @@ Camera::Camera(float verticalFOV, float nearClip, float farClip)
 }
 
 bool Camera::OnUpdate(float ts) {
-    glm::vec2 mousePos  = Input::GetMousePosition();
-    glm::vec2 delta     = (mousePos - m_LastMousePosition) * 0.002f;
-    m_LastMousePosition = mousePos;
+    //glm::vec2 mousePos  = Input::GetMousePosition();
+    //glm::vec2 delta     = (mousePos - m_LastMousePosition) * 0.002f;
+    //m_LastMousePosition = mousePos;
 
-    if (!Input::IsMouseButtonDown(MouseButton::Right)) {
-        Input::SetCursorMode(CursorMode::Normal);
-        return false;
-    }
+    //if (!Input::IsMouseButtonDown(MouseButton::Right)) {
+    //    Input::SetCursorMode(CursorMode::Normal);
+    //    return false;
+    //}
 
-    Input::SetCursorMode(CursorMode::Locked);
+    //Input::SetCursorMode(CursorMode::Locked);
 
-    bool moved = false;
+    //bool moved = false;
 
-    constexpr glm::vec3 upDirection(0.0f, 1.0f, 0.0f);
-    glm::vec3           rightDirection = glm::cross(m_ForwardDirection, upDirection);
+    //constexpr glm::vec3 upDirection(0.0f, 1.0f, 0.0f);
+    //glm::vec3           rightDirection = glm::cross(m_ForwardDirection, upDirection);
 
-    float speed = 5.0f;
+    //float speed = 5.0f;
 
-    // Movement
-    if (Input::IsKeyDown(KeyCode::W)) {
-        m_Position += m_ForwardDirection * speed * ts;
-        moved = true;
-    } else if (Input::IsKeyDown(KeyCode::S)) {
-        m_Position -= m_ForwardDirection * speed * ts;
-        moved = true;
-    }
-    if (Input::IsKeyDown(KeyCode::A)) {
-        m_Position -= rightDirection * speed * ts;
-        moved = true;
-    } else if (Input::IsKeyDown(KeyCode::D)) {
-        m_Position += rightDirection * speed * ts;
-        moved = true;
-    }
-    if (Input::IsKeyDown(KeyCode::Q)) {
-        m_Position -= upDirection * speed * ts;
-        moved = true;
-    } else if (Input::IsKeyDown(KeyCode::E)) {
-        m_Position += upDirection * speed * ts;
-        moved = true;
-    }
+    //// Movement
+    //if (Input::IsKeyDown(KeyCode::W)) {
+    //    m_Position += m_ForwardDirection * speed * ts;
+    //    moved = true;
+    //} else if (Input::IsKeyDown(KeyCode::S)) {
+    //    m_Position -= m_ForwardDirection * speed * ts;
+    //    moved = true;
+    //}
+    //if (Input::IsKeyDown(KeyCode::A)) {
+    //    m_Position -= rightDirection * speed * ts;
+    //    moved = true;
+    //} else if (Input::IsKeyDown(KeyCode::D)) {
+    //    m_Position += rightDirection * speed * ts;
+    //    moved = true;
+    //}
+    //if (Input::IsKeyDown(KeyCode::Q)) {
+    //    m_Position -= upDirection * speed * ts;
+    //    moved = true;
+    //} else if (Input::IsKeyDown(KeyCode::E)) {
+    //    m_Position += upDirection * speed * ts;
+    //    moved = true;
+    //}
 
-    // Rotation
-    if (delta.x != 0.0f || delta.y != 0.0f) {
-        float pitchDelta = delta.y * GetRotationSpeed();
-        float yawDelta   = delta.x * GetRotationSpeed();
+    //// Rotation
+    //if (delta.x != 0.0f || delta.y != 0.0f) {
+    //    float pitchDelta = delta.y * GetRotationSpeed();
+    //    float yawDelta   = delta.x * GetRotationSpeed();
 
-        glm::quat q        = glm::normalize(glm::cross(glm::angleAxis(-pitchDelta, rightDirection),
-                                                glm::angleAxis(-yawDelta, glm::vec3(0.f, 1.0f, 0.0f))));
-        m_ForwardDirection = glm::rotate(q, m_ForwardDirection);
+    //    glm::quat q        = glm::normalize(glm::cross(glm::angleAxis(-pitchDelta, rightDirection),
+    //                                            glm::angleAxis(-yawDelta, glm::vec3(0.f, 1.0f, 0.0f))));
+    //    m_ForwardDirection = glm::rotate(q, m_ForwardDirection);
 
-        moved = true;
-    }
+    //    moved = true;
+    //}
 
-    if (moved) {
-        RecalculateView();
-        RecalculateRayDirections();
-    }
+    //if (moved) {
+    //    RecalculateView();
+    //    RecalculateRayDirections();
+    //}
 
-    return moved;
+    //return moved;
+    return false;
 }
 
 void Camera::OnResize(uint32_t width, uint32_t height) {

@@ -103,7 +103,6 @@ glm::mat4 perspective(float fovy, float aspect, float near, float far) {
     return m;
 }
 
-
 /*
  * for viewport transformation, see subsection 2.12.1 of
  * https://www.khronos.org/registry/OpenGL/specs/es/2.0/es_full_spec_2.0.pdf
@@ -148,28 +147,38 @@ glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
                      1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
 }
 
-
-void DrawTriangle(glm::vec3* pts, float* zbuffer, glm::vec2* uv, TGAImage* image, Model* model, float intensity,
-                  float* screenDepths) {
+void DrawTriangle(glm::vec3* screen_coords, float* zbuffer, glm::vec2* uv, TGAImage* image, Model* model,
+                  float intensity, float* screenDepths) {
     int32_t width  = image->get_width();
     int32_t height = image->get_height();
 
     // Attention: box must be int
     int32_t bboxmin[2] = {std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max()};
     int32_t bboxmax[2] = {-std::numeric_limits<int32_t>::max(), -std::numeric_limits<int32_t>::max()};
-    int32_t clamp[2]   = {width - 1, height - 1};
+    int32_t clamp[2]   = {width, height};
     for (int32_t i = 0; i < 3; i++) {
-        bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)pts[i].x));
-        bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)pts[i].y));
+        bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)screen_coords[i].x));
+        bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)screen_coords[i].y));
 
-        bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)pts[i].x));
-        bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)pts[i].y));
+        bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)screen_coords[i].x));
+        bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)screen_coords[i].y));
     }
+
+    // glm::vec2 bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    // glm::vec2 bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+    // glm::vec2 clamp(width - 1, height - 1);
+    // for (int i = 0; i < 3; i++) {
+    //    for (int j = 0; j < 2; j++) {
+    //        bboxmin[j] = std::max(0.f, std::min(bboxmin[j], screen_coords[i][j]));
+    //        bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], screen_coords[i][j]));
+    //    }
+    //}
+
     glm::vec3 P(1.f);
 
     for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
         for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
-            glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
+            glm::vec3 bc_screen = Barycentric(screen_coords, glm::vec2(P.x, P.y));
             if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
                 continue;
             int32_t idx = P.x + P.y * width;
@@ -182,7 +191,11 @@ void DrawTriangle(glm::vec3* pts, float* zbuffer, glm::vec2* uv, TGAImage* image
 
                 glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
                 TGAColor  color = model->Diffuse(uvP);
-                image->set(P.x, P.y, TGAColor(color.b * intensity, color.g * intensity, color.r * intensity, 255.f));
+
+                //float intense = intensity.x * bc_screen.x + intensity[1] * bc_screen.y + intensity[2] * bc_screen.z;
+                // image->set(P.x, P.y, TGAColor(color.b * intensity, color.g * intensity, color.r * intensity, 255.f));
+                image->set(P.x, P.y, TGAColor(color.b, color.g, color.r, 255.f));
+
                 // image->set(P.x, P.y, TGAColor(255.f * intensity, 255.f * intensity, 255.f * intensity, 255.f));
             }
         }

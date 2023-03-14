@@ -46,7 +46,7 @@ int arcball_on = false;
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
     double x, y;
     glfwGetCursorPos(window, &x, &y);
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
         arcball_on = true;
         last_mx = cur_mx = x;
         last_my = cur_my = y;
@@ -101,9 +101,9 @@ void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor colo
     int32_t height = image->get_height();
 
     // Attention: box must be int
-    int32_t bboxmin[2] = {width - 1, height - 1};
+    int32_t bboxmin[2] = {width, height};
     int32_t bboxmax[2] = {0, 0};
-    int32_t clamp[2]   = {width - 1, image->get_height() - 1};
+    int32_t clamp[2]   = {width, height};
     for (int32_t i = 0; i < 3; i++) {
         bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)pts[i].x));
         bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)pts[i].y));
@@ -126,9 +126,9 @@ void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor colo
             float   depth = interpolateDepth(depths, bc_screen);
             int32_t idx   = P.x + P.y * width;
             // std::cout << "z_buffer: " << depth << std::endl;
-            if (zbuffer[idx] >= depth) {
+            if (zbuffer[idx] > depth) {
                 zbuffer[idx] = depth;
-                
+
                 // glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
                 // TGAColor  color = model->Diffuse(uvP);
                 image->set(P.x, P.y, color);
@@ -199,7 +199,7 @@ bool is_back_facing(Vector3f* ndc_coords) {
     return signed_area <= 0;
 }
 
-void triangle(Vector4f* clip_pos, float* itensity, Vector2f* uv, TGAImage* image, int* zbuffer, Model* model) {
+void triangle(Vector4f* clip_pos, float* itensity, Vector2f* uv, TGAImage* image, float* zbuffer, Model* model) {
     // 齐次除法 / 透视除法 (homogeneous division / perspective division)
     Vector3f ndc_coords[3];
     for (int i = 0; i < 3; i++)
@@ -262,7 +262,7 @@ void triangle(Vector4f* clip_pos, float* itensity, Vector2f* uv, TGAImage* image
     }
 }
 
-void triangle(Vector4f* clip_pos, TGAImage* image, int* zbuffer, TGAColor color) {
+void triangle(Vector4f* clip_pos, TGAImage* image, float* zbuffer, TGAColor color) {
     // 齐次除法 / 透视除法 (homogeneous division / perspective division)
     Vector3f ndc_coords[3];
     for (int i = 0; i < 3; i++)
@@ -443,7 +443,7 @@ public:
             last_my = cur_my;
         }
 
-        bool isCube = false;
+        bool isCube = true;
         if (isCube) {
             glm::vec3 vertices[] = {
                 // Back face
@@ -501,7 +501,7 @@ public:
 
                 for (int32_t j = 0; j < 3; j++) {
                     glm::vec3 vert     = vertices[i + j];
-                    world_coords[j]    = m_World *glm::vec4(vert, 1.f);
+                    world_coords[j]    = m_World * glm::vec4(vert, 1.f);
                     glm::vec4 eye_pos  = world_coords[j] * ModelView;
                     glm::vec4 clip_pos = eye_pos * Projection;
 
@@ -516,7 +516,7 @@ public:
                         glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
                     glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
                     screen_coords[j]       = screen_coord;
-                    std::cout << "depth: " << screen_coord.z << std::endl;
+                    //std::cout << "depth: " << screen_coord.z << std::endl;
                 }
                 TGAColor color = TGAColor(i / 36.f * 255, i / 36.f * 255, i / 36.f * 255, 255.f);
                 DrawTriangle(screen_coords, m_Zbuffer, m_Image, color);
