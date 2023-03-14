@@ -116,7 +116,7 @@ project "BraveFish"
 	{
 		"ABraveFish/src",
 		"ABraveFish/vendor/imgui",
-		"ABraveFish/vendor/GLFW",
+		"ABraveFish/vendor/GLFW/include",
 		"ABraveFish/vendor/glm"
 	}
 

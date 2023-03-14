@@ -10,16 +10,17 @@
 #include "Core/Timer.h"
 
 #include "Core/Timer.h"
-#include "include/GLFW/glfw3.h"
+#include "GLFW/glfw3.h"
 
 #define YUJUNDA_ORIGIN
 
 #if defined YUJUNDA_ORIGIN
 #include <glm/glm.hpp>
 #include "Core/Macros.h"
+#include "Core/Window.h"
 #include "Renderer/Camera.h"
 #include "Renderer/RenderDevice.h"
-#include "Core/Window.h"
+#include "glm/gtc/matrix_transform.hpp"
 #else
 #include "Renderer/Camera.h"
 #include "model.h"
@@ -34,36 +35,51 @@ const int depth = 255;
 
 #if defined YUJUNDA_ORIGIN
 
-glm::vec3 last;
-bool      ballEnabled = true;
+/* Global */
+int last_mx = 0, last_my = 0, cur_mx = 0, cur_my = 0;
+int arcball_on = false;
 
-void mouseCallback(GLFWwindow* window, int button, int action, int mods) {
-    // Whenever the left mouse button is pressed, the
-    // mouse cursor's position is stored for the arc-
-    // ball camera as a reference.
+void onMouse(GLFWwindow* window, int button, int action, int mods) {
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        double curr_x = 0, curr_y = 0;
-
-        glfwGetCursorPos(window, &curr_x, &curr_y);
-
-        // last is a global vec3 variable
-        last = glm::vec3(curr_x, curr_y, -1);
-
-        // This is another global variable
-        ballEnabled = true;
+        arcball_on = true;
+        last_mx = cur_mx = x;
+        last_my = cur_my = y;
+        std::cout << "onMouse" << std::endl;
+    } else {
+        arcball_on = false;
     }
-
-    // When the user releases the left mouse button,
-    // all we have to do is to reset the flag.
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
-        ballEnabled = false;
 }
 
+void onMotion(GLFWwindow* window, double x, double y) {
+    if (arcball_on) { // if left button is pressed
+        cur_mx = x;
+        cur_my = y;
+    }
+}
+
+/**
+ * Get a normalized vector from the center of the virtual ball O to a
+ * point P on the virtual ball surface, such that P is aligned on
+ * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
+ * sphere, return the nearest point on the virtual ball surface.
+ */
+glm::vec3 get_arcball_vector(int x, int y, int width, int height) {
+    // viewport reverse
+    glm::vec3 P      = glm::vec3(1.0 * x / width * 2 - 1.0, 1.0 * y / height * 2 - 1.0, 0);
+    P.y              = -P.y;
+    float OP_squared = P.x * P.x + P.y * P.y;
+    if (OP_squared <= 1 * 1)
+        P.z = sqrt(1 * 1 - OP_squared); // Pythagoras
+    else
+        P = glm::normalize(P); // nearest point
+    return P;
+}
 
 glm::vec3 light_dir(0, 0, -1); // define light_dir
 glm::vec3 eye(1, 1, 3);
 glm::vec3 center(0, 0, 0);
-
 
 glm::vec3 Barycentric(std::vector<glm::vec3> pts, glm::vec2 P) {
     glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
@@ -311,7 +327,8 @@ public:
 
     virtual void OnAttach() override {
         GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
-        glfwSetMouseButtonCallback(window, mouseCallback);
+        glfwSetMouseButtonCallback(window, onMouse);
+        glfwSetCursorPosCallback(window, onMotion);
     }
 
     virtual void OnUpdate(float ts) override {
@@ -371,10 +388,24 @@ public:
             //}
 
 #if defined YUJUNDA_ORIGIN
-        //glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
-        //glm::mat4 Projection = perspective(TO_RADIANS(60.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
-        glm::mat4 ModelView  = m_Camera.GetView();
-        glm::mat4 Projection = m_Camera.GetProjection();
+        glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
+        glm::mat4 Projection = perspective(TO_RADIANS(60.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
+        // glm::mat4 ModelView  = m_Camera.GetView();
+        // glm::mat4 Projection = m_Camera.GetProjection();
+
+        /* onIdle() */
+        if (cur_mx != last_mx || cur_my != last_my) {
+            glm::vec3 va                   = get_arcball_vector(last_mx, last_my, m_ViewportWidth, m_ViewportWidth);
+            glm::vec3 vb                   = get_arcball_vector(cur_mx, cur_my, m_ViewportWidth, m_ViewportWidth);
+            float     angle                = acos(std::min(1.0f, glm::dot(va, vb))) * 0.2;
+            std::cout << "onUpdate:" << angle << std::endl;
+            glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
+            glm::mat3 camera2object        = glm::inverse(glm::mat3(ModelView) * glm::mat3(m_World));
+            glm::vec3 axis_in_object_coord = camera2object * axis_in_camera_coord;
+            m_World                        = glm::rotate(m_World, glm::degrees(angle), axis_in_object_coord);
+            last_mx                        = cur_mx;
+            last_my                        = cur_my;
+        }
 
         bool isCube = false;
         if (isCube) {
@@ -458,10 +489,11 @@ public:
                 glm::vec3            screen_coords[3];
                 glm::vec3            world_coords[3];
                 glm::vec3            ndc_coords[3];
-                float              screen_depths[3];
+                float                screen_depths[3];
                 for (int32_t j = 0; j < 3; j++) {
-                    glm::vec3 world_pos = m_Model->Vert(face[j]);
-                    glm::vec4 eye_pos   = glm::vec4(world_pos.x, world_pos.y, world_pos.z, 1.f) * ModelView;
+                    glm::vec3 vert      = m_Model->Vert(face[j]);
+                    glm::vec4 world_pos = m_World * glm::vec4(vert.x, vert.y, vert.z, 1.f);
+                    glm::vec4 eye_pos   = world_pos * ModelView;
                     glm::vec4 clipPos   = eye_pos * Projection;
 
                     glm::vec4 ndcPos =
@@ -470,7 +502,7 @@ public:
                     glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
                     screen_coords[j]       = screen_coord;
 
-                    world_coords[j] = world_pos;
+                    world_coords[j]  = world_pos;
                     screen_depths[j] = screen_coord.z;
                 }
 
@@ -601,6 +633,8 @@ private:
     Model*    m_Model   = nullptr;
     int32_t*  m_Zbuffer = nullptr;
     Camera    m_Camera;
+
+    glm::mat4 m_World = glm::mat4(1.f);
 
     double m_Time = 0.f;
 };
