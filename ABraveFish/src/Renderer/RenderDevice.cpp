@@ -149,7 +149,7 @@ glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
 }
 
 
-void DrawTriangle(glm::vec3* pts, int32_t* zbuffer, glm::vec2* uv, TGAImage* image, Model* model, float intensity,
+void DrawTriangle(glm::vec3* pts, float* zbuffer, glm::vec2* uv, TGAImage* image, Model* model, float intensity,
                   float* screenDepths) {
     int32_t width  = image->get_width();
     int32_t height = image->get_height();

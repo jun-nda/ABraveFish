@@ -10,6 +10,7 @@
 #include "Core/Timer.h"
 
 #include "Core/Timer.h"
+#include "Core/Window.h"
 #include "GLFW/glfw3.h"
 
 #define YUJUNDA_ORIGIN
@@ -17,23 +18,26 @@
 #if defined YUJUNDA_ORIGIN
 #include <glm/glm.hpp>
 #include "Core/Macros.h"
-#include "Core/Window.h"
 #include "Renderer/Camera.h"
 #include "Renderer/RenderDevice.h"
 #include "glm/gtc/matrix_transform.hpp"
 #else
 #include "Renderer/Camera.h"
+#include "maths.h"
 #include "model.h"
 #include "tgaimage.h"
 #include "vector.h"
 
 #endif
+#include <xutility>
 
 using namespace ABraveFish;
 
 const int depth = 255;
 
-#if defined YUJUNDA_ORIGIN
+/*
+ * https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Arcball
+ */
 
 /* Global */
 int last_mx = 0, last_my = 0, cur_mx = 0, cur_my = 0;
@@ -58,6 +62,8 @@ void onMotion(GLFWwindow* window, double x, double y) {
         cur_my = y;
     }
 }
+
+#if defined YUJUNDA_ORIGIN
 
 /**
  * Get a normalized vector from the center of the virtual ball O to a
@@ -90,7 +96,7 @@ glm::vec3 Barycentric(std::vector<glm::vec3> pts, glm::vec2 P) {
     return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
 }
 
-void DrawTriangle(std::vector<glm::vec3>& pts, int32_t* zbuffer, TGAImage* image, TGAColor color) {
+void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor color) {
     int32_t width  = image->get_width();
     int32_t height = image->get_height();
 
@@ -107,15 +113,22 @@ void DrawTriangle(std::vector<glm::vec3>& pts, int32_t* zbuffer, TGAImage* image
     }
     glm::vec3 P(1.f);
 
+    float depths[3];
+    for (int32_t i = 0; i < 3; ++i) {
+        depths[i] = pts[i].z;
+    }
     for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
         for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
             glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
             if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
                 continue;
-            int32_t idx = P.x + P.y * width;
-            if (zbuffer[idx] > P.z) {
-                zbuffer[idx] = P.z;
 
+            float   depth = interpolateDepth(depths, bc_screen);
+            int32_t idx   = P.x + P.y * width;
+            // std::cout << "z_buffer: " << depth << std::endl;
+            if (zbuffer[idx] >= depth) {
+                zbuffer[idx] = depth;
+                
                 // glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
                 // TGAColor  color = model->Diffuse(uvP);
                 image->set(P.x, P.y, color);
@@ -126,6 +139,25 @@ void DrawTriangle(std::vector<glm::vec3>& pts, int32_t* zbuffer, TGAImage* image
 }
 
 #else
+
+/**
+ * Get a normalized vector from the center of the virtual ball O to a
+ * point P on the virtual ball surface, such that P is aligned on
+ * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
+ * sphere, return the nearest point on the virtual ball surface.
+ */
+Vector3f get_arcball_vector(int x, int y, int width, int height) {
+    // viewport reverse
+    Vector3f P       = Vector3f(1.0 * x / width * 2 - 1.0, 1.0 * y / height * 2 - 1.0, 0);
+    P.y              = -P.y;
+    float OP_squared = P.x * P.x + P.y * P.y;
+    if (OP_squared <= 1 * 1)
+        P.z = sqrt(1 * 1 - OP_squared); // Pythagoras
+    else
+        P = P.normalize(); // nearest point
+    return P;
+}
+
 Vector3f light_dir(0, 0, -1); // define light_dir
 Vector3f eye(1, 1, 3);
 Vector3f center(0, 0, 0);
@@ -293,6 +325,15 @@ void triangle(Vector4f* clip_pos, TGAImage* image, int* zbuffer, TGAColor color)
     }
 }
 
+Matrix3x3 matrix4to3(const Matrix4x4& mat4) {
+    Matrix3x3 mat3;
+    mat3.identity();
+    for (int32_t i = 0; i < 3; ++i) {
+        mat3.setCol(i, embed<3>(mat4[i]));
+    }
+    return mat3;
+}
+
 #endif
 
 unsigned int registeOpenGLTexture(unsigned char* buffer, uint32_t width, uint32_t height) {
@@ -312,13 +353,6 @@ unsigned int registeOpenGLTexture(unsigned char* buffer, uint32_t width, uint32_
     return texid;
 }
 
-// const glm::vec3 center(0.f, 0.f, 0.f);
-// const glm::vec3 up(0.f, 1.f, 0.f);
-// const float     radius       = 5.f;
-// const float     minRadius    = 1.f;
-// const float     azimuthAngle = TO_RADIANS(0.f);
-// const float     polarAngle   = TO_RADIANS(0.f);
-
 class BraveFishLayer : public Layer {
 public:
     BraveFishLayer()
@@ -329,6 +363,9 @@ public:
         GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
         glfwSetMouseButtonCallback(window, onMouse);
         glfwSetCursorPosCallback(window, onMotion);
+
+        for (int i = 2000 * 2000; i--; m_Zbuffer[i] = 1.f)
+            ;
     }
 
     virtual void OnUpdate(float ts) override {
@@ -379,13 +416,9 @@ public:
             m_Model = new Model("obj/african_head/african_head.obj");
         }
 
-        // if (!m_Zbuffer) {
-        //    delete[] m_Zbuffer;
-        //    m_Zbuffer = nullptr;
-        m_Zbuffer = new int32_t[m_ViewportWidth * m_ViewportHeight];
-        for (int i = m_ViewportWidth * m_ViewportHeight; i--; m_Zbuffer[i] = 10000.f)
-            ;
-            //}
+        if (m_Zbuffer) {
+            std::fill(m_Zbuffer, m_Zbuffer + 2000 * 2000, 1.f);
+        }
 
 #if defined YUJUNDA_ORIGIN
         glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
@@ -395,16 +428,19 @@ public:
 
         /* onIdle() */
         if (cur_mx != last_mx || cur_my != last_my) {
-            glm::vec3 va                   = get_arcball_vector(last_mx, last_my, m_ViewportWidth, m_ViewportWidth);
-            glm::vec3 vb                   = get_arcball_vector(cur_mx, cur_my, m_ViewportWidth, m_ViewportWidth);
-            float     angle                = acos(std::min(1.0f, glm::dot(va, vb))) * 0.2;
-            std::cout << "onUpdate:" << angle << std::endl;
+            glm::vec3 va    = get_arcball_vector(last_mx, last_my, m_ViewportWidth, m_ViewportWidth);
+            glm::vec3 vb    = get_arcball_vector(cur_mx, cur_my, m_ViewportWidth, m_ViewportWidth);
+            float     angle = acos(std::min(1.0f, glm::dot(va, vb))) * 0.2;
+            // std::cout << "onUpdate:" << angle << std::endl;
             glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
             glm::mat3 camera2object        = glm::inverse(glm::mat3(ModelView) * glm::mat3(m_World));
             glm::vec3 axis_in_object_coord = camera2object * axis_in_camera_coord;
-            m_World                        = glm::rotate(m_World, glm::degrees(angle), axis_in_object_coord);
-            last_mx                        = cur_mx;
-            last_my                        = cur_my;
+            // std::cout << "axis:" << axis_in_camera_coord.x << " " << axis_in_camera_coord.y << " "
+            //          << axis_in_camera_coord.z << std::endl;
+
+            m_World = glm::rotate(m_World, glm::degrees(angle), axis_in_object_coord);
+            last_mx = cur_mx;
+            last_my = cur_my;
         }
 
         bool isCube = false;
@@ -460,25 +496,27 @@ public:
             };
 
             for (int32_t i = 0; i < 36; i += 3) {
-                std::vector<glm::vec3> world_coords;
-                std::vector<glm::vec3> screen_coords;
+                glm::vec4 world_coords[3];
+                glm::vec3 screen_coords[3];
 
                 for (int32_t j = 0; j < 3; j++) {
-                    world_coords.emplace_back(vertices[i + j]);
-                    glm::vec4 eye_pos =
-                        glm::vec4(world_coords[j].x, world_coords[j].y, world_coords[j].z, 1.f) * ModelView;
+                    glm::vec3 vert     = vertices[i + j];
+                    world_coords[j]    = m_World *glm::vec4(vert, 1.f);
+                    glm::vec4 eye_pos  = world_coords[j] * ModelView;
                     glm::vec4 clip_pos = eye_pos * Projection;
 
-                    PrintMatrix(Projection);
-                    PrintMatrix(ModelView);
-                    std::cout << world_coords[j].x << " " << world_coords[j].y << " " << world_coords[j].z << std::endl;
-                    std::cout << eye_pos.x << " " << eye_pos.y << " " << eye_pos.z << " " << eye_pos.w << std::endl;
-                    std::cout << clip_pos.x << " " << clip_pos.y << " " << clip_pos.z << " " << clip_pos.w << std::endl;
+                    // PrintMatrix(Projection);
+                    // PrintMatrix(ModelView);
+                    // std::cout << world_coords[j].x << " " << world_coords[j].y << " " << world_coords[j].z <<
+                    // std::endl; std::cout << eye_pos.x << " " << eye_pos.y << " " << eye_pos.z << " " << eye_pos.w <<
+                    // std::endl; std::cout << clip_pos.x << " " << clip_pos.y << " " << clip_pos.z << " " << clip_pos.w
+                    // << std::endl;
 
                     glm::vec3 ndc_pos =
                         glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
                     glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
-                    screen_coords.emplace_back(screen_coord);
+                    screen_coords[j]       = screen_coord;
+                    std::cout << "depth: " << screen_coord.z << std::endl;
                 }
                 TGAColor color = TGAColor(i / 36.f * 255, i / 36.f * 255, i / 36.f * 255, 255.f);
                 DrawTriangle(screen_coords, m_Zbuffer, m_Image, color);
@@ -492,7 +530,7 @@ public:
                 float                screen_depths[3];
                 for (int32_t j = 0; j < 3; j++) {
                     glm::vec3 vert      = m_Model->Vert(face[j]);
-                    glm::vec4 world_pos = m_World * glm::vec4(vert.x, vert.y, vert.z, 1.f);
+                    glm::vec4 world_pos = m_World * glm::vec4(vert, 1.f);
                     glm::vec4 eye_pos   = world_pos * ModelView;
                     glm::vec4 clipPos   = eye_pos * Projection;
 
@@ -529,6 +567,25 @@ public:
         Matrix4x4 ModelView  = lookat(eye, center, Vector3f(0, 1, 0));
         Matrix4x4 Projection = Matrix4x4::identity();
         Projection           = perspective(TO_RADIANS(60), m_ViewportWidth / m_ViewportHeight, 0.1f, 100.f);
+
+        /* onIdle() */
+        if (cur_mx != last_mx || cur_my != last_my) {
+            Vector3f va    = get_arcball_vector(last_mx, last_my, m_ViewportWidth, m_ViewportWidth);
+            Vector3f vb    = get_arcball_vector(cur_mx, cur_my, m_ViewportWidth, m_ViewportWidth);
+            float    angle = acos(std::min(1.0f, va * vb)) * 0.2;
+            std::cout << "onUpdate:" << angle << std::endl;
+            Vector3f  axis_in_camera_coord = cross(va, vb);
+            Matrix3x3 camera2object        = (matrix4to3(m_World) * matrix4to3(ModelView)).invert();
+            Vector3f  axis_in_object_coord = camera2object * axis_in_camera_coord;
+            std::cout << "axis:" << axis_in_camera_coord << std::endl;
+
+            Matrix4x4 rotateM =
+                rotate(glm::degrees(angle), axis_in_object_coord[0], axis_in_object_coord[1], axis_in_object_coord[2]);
+            m_World = m_World * rotateM;
+            last_mx = cur_mx;
+            last_my = cur_my;
+        }
+
         // PrintMatrix(ModelView);
         bool isCube = false;
         if (isCube) {
@@ -584,11 +641,12 @@ public:
 
             for (int32_t i = 0; i < 36; i += 3) {
                 Vector4f clip_pos[3];
-                Vector3f world_coords[3];
+                Vector4f world_coords[3];
                 Vector4f eye_pos[3];
                 for (int32_t j = 0; j < 3; j++) {
-                    world_coords[j] = vertices[i + j];
-                    eye_pos[j]      = ModelView * embed<4>(world_coords[j], 1.f);
+                    Vector3f vert   = vertices[i + j];
+                    world_coords[j] = m_World * embed<4>(vert, 1.f);
+                    eye_pos[j]      = ModelView * world_coords[j];
                     clip_pos[j]     = Projection * eye_pos[j];
                     // PrintMatrix(Projection);
                     // PrintMatrix(ModelView);
@@ -606,12 +664,12 @@ public:
             for (int i = 0; i < m_Model->nfaces(); i++) {
                 std::vector<int32_t> face = m_Model->face(i);
                 Vector4f             clip_pos[3];
-                Vector3f             world_coords[3];
+                Vector4f             world_coords[3];
                 float                intensity[3];
                 for (int j = 0; j < 3; j++) {
                     Vector3f v      = m_Model->vert(face[j]);
-                    clip_pos[j]     = Vector4f(Projection * ModelView * embed<4>(v));
-                    world_coords[j] = v;
+                    world_coords[j] = m_World * embed<4>(v);
+                    clip_pos[j]     = Vector4f(Projection * ModelView * world_coords[j]);
                     intensity[j]    = m_Model->normal(i, j) * light_dir;
                 }
                 Vector2f uv[3];
@@ -629,12 +687,16 @@ public:
 
 private:
     uint32_t  m_ViewportWidth = 0, m_ViewportHeight = 0;
-    TGAImage* m_Image   = nullptr;
-    Model*    m_Model   = nullptr;
-    int32_t*  m_Zbuffer = nullptr;
+    TGAImage* m_Image = nullptr;
+    Model*    m_Model = nullptr;
+    float     m_Zbuffer[2000 * 2000];
     Camera    m_Camera;
 
+#ifdef YUJUNDA_ORIGIN
     glm::mat4 m_World = glm::mat4(1.f);
+#else
+    Matrix4x4 m_World = m_World.identity();
+#endif
 
     double m_Time = 0.f;
 };

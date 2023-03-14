@@ -12,7 +12,7 @@ glm::vec3 viewport_transform(int width, int height, glm::vec3 ndc_coord);
 bool      isBackFacing(glm::vec3 ndc_coords[]);
 float     interpolateDepth(float* screenDepth, glm::vec3 weights);
 glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P);
-void      DrawTriangle(glm::vec3* pts, int32_t* zbuffer, glm::vec2* uv, TGAImage* image, Model* model, float intensity,
+void      DrawTriangle(glm::vec3* pts, float* zbuffer, glm::vec2* uv, TGAImage* image, Model* model, float intensity,
                        float* screenDepths);
 void      PrintMatrix(glm::mat4 m);
 
