@@ -1,52 +1,30 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <vector>
+#include "glm/glm.hpp"
 
 namespace ABraveFish {
 class Camera {
 public:
-    Camera(float verticalFOV, float nearClip, float farClip);
+    Camera();
+    void update(float ts);
+    void updateTransformMatrix(int32_t width, int32_t height);
 
-    bool OnUpdate(float ts);
-    void OnResize(uint32_t width, uint32_t height);
-
-    const glm::mat4& GetProjection() const { return m_Projection; }
-    const glm::mat4& GetInverseProjection() const { return m_InverseProjection; }
-    const glm::mat4& GetView() const { return m_View; }
-    const glm::mat4& GetInverseView() const { return m_InverseView; }
-
-    const glm::vec3& GetPosition() const { return m_Position; }
-    const glm::vec3& GetDirection() const { return m_ForwardDirection; }
-
-    const std::vector<glm::vec3>& GetRayDirections() const { return m_RayDirections; }
-
-    float GetRotationSpeed();
+    const glm::mat4 getWorldMatrix() const { return m_WorldMatrix; }
+    const glm::mat4 getViewMatrix() const { return m_ViewMatrix; }
+    const glm::mat4 getPerspectiveMatrix() const { return m_PerspectiveMatrix; }
 
 private:
-    void RecalculateProjection();
-    void RecalculateView();
-    void RecalculateRayDirections();
+    void initMouseCallBack();
 
 private:
-    glm::mat4 m_Projection{1.0f};
-    glm::mat4 m_View{1.0f};
-    glm::mat4 m_InverseProjection{1.0f};
-    glm::mat4 m_InverseView{1.0f};
+    glm::vec3 m_Pos    = glm::vec3(0.f, 0.f, 3.f);
+    glm::vec3 m_Target = glm::vec3(0.f, 0.f, -1.f);
 
-    float m_VerticalFOV = 45.0f;
-    float m_NearClip    = 0.1f;
-    float m_FarClip     = 100.0f;
+    int32_t m_Width = 0;
+    int32_t m_Height = 0;
 
-    glm::vec3 m_Position{0.0f, 0.0f, 0.0f};
-    glm::vec3 m_ForwardDirection{0.0f, 0.0f, 0.0f};
-
-    // Cached ray directions
-    std::vector<glm::vec3> m_RayDirections;
-
-    glm::vec2 m_LastMousePosition{0.0f, 0.0f};
-
-    uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
+    glm::mat4 m_WorldMatrix       = glm::mat4(1.f);
+    glm::mat4 m_ViewMatrix        = glm::mat4(1.f);
+    glm::mat4 m_PerspectiveMatrix = glm::mat4(1.f);
 };
 } // namespace ABraveFish
-

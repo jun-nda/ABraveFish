@@ -6,7 +6,6 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_opengl3_loader.h"
 
-#include "Input.h"
 #include "Renderer/Image.h"
 #include "Timer.h"
 #include "Window.h"
@@ -70,9 +69,6 @@ void Application::Run() {
     ImGuiIO& io = ImGui::GetIO();
 
     static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
-
-    Input::SetMouseScrollCallback();
-    // Input::SetMouseMoveCallback();
 
     while (!m_Window->IsWindowShouldClose()) {
         glClearColor(1, 0, 1, 1);

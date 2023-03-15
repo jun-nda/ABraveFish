@@ -1,123 +1,105 @@
-#include "Camera.h"
+#include "camera.h"
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtx/quaternion.hpp>
+#include "Core/Application.h"
+#include "Core/Macros.h"
+#include "Core/Window.h"
 
-#include "Core/Input.h"
 #include "RenderDevice.h"
 
-using namespace ABraveFish;
+#include "GLFW/glfw3.h"
+#include "glm/gtc/matrix_transform.hpp"
 
-Camera::Camera(float verticalFOV, float nearClip, float farClip)
-    : m_VerticalFOV(verticalFOV)
-    , m_NearClip(nearClip)
-    , m_FarClip(farClip) {
-    m_ForwardDirection = glm::vec3(0, 0, -1);
-    m_Position         = glm::vec3(1, 1, 3);
+namespace ABraveFish {
 
-    RecalculateView();
-}
+const glm::vec3 UP(0.f, 1.f, 0.f);
 
-bool Camera::OnUpdate(float ts) {
-    //glm::vec2 mousePos  = Input::GetMousePosition();
-    //glm::vec2 delta     = (mousePos - m_LastMousePosition) * 0.002f;
-    //m_LastMousePosition = mousePos;
+const float NEAR = 0.1f;
+const float FAR  = 1000.f;
+const float FOV  = TO_RADIANS(60);
 
-    //if (!Input::IsMouseButtonDown(MouseButton::Right)) {
-    //    Input::SetCursorMode(CursorMode::Normal);
-    //    return false;
-    //}
+/* Arcbal */
+int32_t last_mx = 0, last_my = 0, cur_mx = 0, cur_my = 0;
+int32_t arcball_on = false;
 
-    //Input::SetCursorMode(CursorMode::Locked);
+glm::vec3 get_arcball_vector(int x, int y, int width, int height);
+void      onMouse(GLFWwindow* window, int button, int action, int mods);
+void      onMotion(GLFWwindow* window, double x, double y);
 
-    //bool moved = false;
+/*
+ * https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Arcball
+ */
 
-    //constexpr glm::vec3 upDirection(0.0f, 1.0f, 0.0f);
-    //glm::vec3           rightDirection = glm::cross(m_ForwardDirection, upDirection);
+Camera::Camera() { initMouseCallBack(); }
 
-    //float speed = 5.0f;
+void Camera::update(float ts) {
+    /* onIdle() */
+    if (cur_mx != last_mx || cur_my != last_my) {
+        glm::vec3 va    = get_arcball_vector(last_mx, last_my, m_Width, m_Height);
+        glm::vec3 vb    = get_arcball_vector(cur_mx, cur_my, m_Width, m_Height);
+        float     angle = acos(std::min(1.0f, glm::dot(va, vb))) * 0.2;
+        // std::cout << "onUpdate:" << angle << std::endl;
+        glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
+        glm::mat3 camera2object        = glm::inverse(glm::mat3(m_ViewMatrix) * glm::mat3(m_WorldMatrix));
+        glm::vec3 axis_in_object_coord = camera2object * axis_in_camera_coord;
+        // std::cout << "axis:" << axis_in_camera_coord.x << " " << axis_in_camera_coord.y << " "
+        //          << axis_in_camera_coord.z << std::endl;
 
-    //// Movement
-    //if (Input::IsKeyDown(KeyCode::W)) {
-    //    m_Position += m_ForwardDirection * speed * ts;
-    //    moved = true;
-    //} else if (Input::IsKeyDown(KeyCode::S)) {
-    //    m_Position -= m_ForwardDirection * speed * ts;
-    //    moved = true;
-    //}
-    //if (Input::IsKeyDown(KeyCode::A)) {
-    //    m_Position -= rightDirection * speed * ts;
-    //    moved = true;
-    //} else if (Input::IsKeyDown(KeyCode::D)) {
-    //    m_Position += rightDirection * speed * ts;
-    //    moved = true;
-    //}
-    //if (Input::IsKeyDown(KeyCode::Q)) {
-    //    m_Position -= upDirection * speed * ts;
-    //    moved = true;
-    //} else if (Input::IsKeyDown(KeyCode::E)) {
-    //    m_Position += upDirection * speed * ts;
-    //    moved = true;
-    //}
-
-    //// Rotation
-    //if (delta.x != 0.0f || delta.y != 0.0f) {
-    //    float pitchDelta = delta.y * GetRotationSpeed();
-    //    float yawDelta   = delta.x * GetRotationSpeed();
-
-    //    glm::quat q        = glm::normalize(glm::cross(glm::angleAxis(-pitchDelta, rightDirection),
-    //                                            glm::angleAxis(-yawDelta, glm::vec3(0.f, 1.0f, 0.0f))));
-    //    m_ForwardDirection = glm::rotate(q, m_ForwardDirection);
-
-    //    moved = true;
-    //}
-
-    //if (moved) {
-    //    RecalculateView();
-    //    RecalculateRayDirections();
-    //}
-
-    //return moved;
-    return false;
-}
-
-void Camera::OnResize(uint32_t width, uint32_t height) {
-    if (width == m_ViewportWidth && height == m_ViewportHeight)
-        return;
-
-    m_ViewportWidth  = width;
-    m_ViewportHeight = height;
-
-    RecalculateProjection();
-    RecalculateRayDirections();
-}
-
-float Camera::GetRotationSpeed() { return 0.3f; }
-
-void Camera::RecalculateProjection() {
-    m_Projection = perspective(glm::radians(m_VerticalFOV), (float)m_ViewportWidth/(float)m_ViewportHeight,
-                                       m_NearClip, m_FarClip);
-    m_InverseProjection = glm::inverse(m_Projection);
-}
-
-void Camera::RecalculateView() {
-    m_View        = lookAt(m_Position, m_Position + m_ForwardDirection, glm::vec3(0, 1, 0));
-    m_InverseView = glm::inverse(m_View);
-}
-
-void Camera::RecalculateRayDirections() {
-    m_RayDirections.resize(m_ViewportWidth * m_ViewportHeight);
-
-    for (uint32_t y = 0; y < m_ViewportHeight; y++) {
-        for (uint32_t x = 0; x < m_ViewportWidth; x++) {
-            glm::vec2 coord = {(float)x / (float)m_ViewportWidth, (float)y / (float)m_ViewportHeight};
-            coord           = coord * 2.0f - 1.0f; // -1 -> 1
-
-            glm::vec4 target = m_InverseProjection * glm::vec4(coord.x, coord.y, 1, 1);
-            glm::vec3 rayDirection =
-                glm::vec3(m_InverseView * glm::vec4(glm::normalize(glm::vec3(target) / target.w), 0)); // World space
-            m_RayDirections[x + y * m_ViewportWidth] = rayDirection;
-        }
+        m_WorldMatrix = glm::rotate(m_WorldMatrix, glm::degrees(angle), axis_in_object_coord);
+        last_mx       = cur_mx;
+        last_my       = cur_my;
     }
 }
+
+void Camera::updateTransformMatrix(int32_t width, int32_t height) {
+    m_Width  = width;
+    m_Height = height;
+
+    m_ViewMatrix        = lookat(m_Pos, m_Target, UP);
+    m_PerspectiveMatrix = perspective(FOV, m_Width / m_Height, NEAR, FAR);
+}
+
+void Camera::initMouseCallBack() {
+    GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
+    glfwSetMouseButtonCallback(window, onMouse);
+    glfwSetCursorPosCallback(window, onMotion);
+}
+
+/**
+ * Get a normalized vector from the center of the virtual ball O to a
+ * point P on the virtual ball surface, such that P is aligned on
+ * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
+ * sphere, return the nearest point on the virtual ball surface.
+ */
+glm::vec3 get_arcball_vector(int x, int y, int width, int height) {
+    // viewport reverse
+    glm::vec3 P      = glm::vec3(1.0 * x / width * 2 - 1.0, 1.0 * y / height * 2 - 1.0, 0);
+    P.y              = -P.y;
+    float OP_squared = P.x * P.x + P.y * P.y;
+    if (OP_squared <= 1 * 1)
+        P.z = sqrt(1 * 1 - OP_squared); // Pythagoras
+    else
+        P = glm::normalize(P); // nearest point
+    return P;
+}
+
+void onMouse(GLFWwindow* window, int button, int action, int mods) {
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+        arcball_on = true;
+        last_mx = cur_mx = x;
+        last_my = cur_my = y;
+        // std::cout << "onMouse" << std::endl;
+    } else {
+        arcball_on = false;
+    }
+}
+
+void onMotion(GLFWwindow* window, double x, double y) {
+    if (arcball_on) { // if left button is pressed
+        cur_mx = x;
+        cur_my = y;
+    }
+}
+
+} // namespace ABraveFish

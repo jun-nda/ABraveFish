@@ -18,9 +18,8 @@
 #if defined YUJUNDA_ORIGIN
 #include <glm/glm.hpp>
 #include "Core/Macros.h"
-#include "Renderer/Camera.h"
 #include "Renderer/RenderDevice.h"
-#include "glm/gtc/matrix_transform.hpp"
+#include "Renderer/Camera.h"
 #else
 #include "Renderer/Camera.h"
 #include "maths.h"
@@ -35,53 +34,7 @@ using namespace ABraveFish;
 
 const int depth = 255;
 
-/*
- * https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Arcball
- */
-
-/* Global */
-int last_mx = 0, last_my = 0, cur_mx = 0, cur_my = 0;
-int arcball_on = false;
-
-void onMouse(GLFWwindow* window, int button, int action, int mods) {
-    double x, y;
-    glfwGetCursorPos(window, &x, &y);
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-        arcball_on = true;
-        last_mx = cur_mx = x;
-        last_my = cur_my = y;
-        std::cout << "onMouse" << std::endl;
-    } else {
-        arcball_on = false;
-    }
-}
-
-void onMotion(GLFWwindow* window, double x, double y) {
-    if (arcball_on) { // if left button is pressed
-        cur_mx = x;
-        cur_my = y;
-    }
-}
-
 #if defined YUJUNDA_ORIGIN
-
-/**
- * Get a normalized vector from the center of the virtual ball O to a
- * point P on the virtual ball surface, such that P is aligned on
- * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
- * sphere, return the nearest point on the virtual ball surface.
- */
-glm::vec3 get_arcball_vector(int x, int y, int width, int height) {
-    // viewport reverse
-    glm::vec3 P      = glm::vec3(1.0 * x / width * 2 - 1.0, 1.0 * y / height * 2 - 1.0, 0);
-    P.y              = -P.y;
-    float OP_squared = P.x * P.x + P.y * P.y;
-    if (OP_squared <= 1 * 1)
-        P.z = sqrt(1 * 1 - OP_squared); // Pythagoras
-    else
-        P = glm::normalize(P); // nearest point
-    return P;
-}
 
 glm::vec3 light_dir(0, 0, -1); // define light_dir
 glm::vec3 eye(1, 1, 3);
@@ -357,13 +310,9 @@ class BraveFishLayer : public Layer {
 public:
     BraveFishLayer()
         : m_Image(nullptr)
-        , m_Camera(TO_RADIANS(45), 0.1f, 1000.f) {}
+         {}
 
     virtual void OnAttach() override {
-        GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
-        glfwSetMouseButtonCallback(window, onMouse);
-        glfwSetCursorPosCallback(window, onMotion);
-
         for (int i = 2000 * 2000; i--; m_Zbuffer[i] = 1.f)
             ;
     }
@@ -372,21 +321,19 @@ public:
         if (m_Image) {
             delete m_Image;
             m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
-            m_Camera.OnUpdate(ts);
+            m_Camera.update(ts);
             Render();
         }
-
-        // m_Renderer.ResetFrameIndex();
     }
 
     virtual void OnUIRender() {
         bool is = true;
-        // ImGui::ShowDemoWindow(&is);
         Timer timer;
 
         ImGui::Begin("Settings");
         ImGui::Text("yujunda");
         ImGui::Text("Last render: %.3fms", m_Time);
+        //ImGui::Text();
 
         ImGui::End();
 
@@ -398,7 +345,7 @@ public:
         if (!m_Image || m_ViewportWidth != m_Image->get_width() || m_ViewportHeight != m_Image->get_height()) {
             delete m_Image;
             m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
-            m_Camera.OnResize(m_ViewportWidth, m_ViewportHeight);
+            m_Camera.updateTransformMatrix(m_ViewportWidth, m_ViewportHeight);
             Render();
         }
 
@@ -421,29 +368,11 @@ public:
         }
 
 #if defined YUJUNDA_ORIGIN
-        glm::mat4 ModelView  = lookat(eye, center, glm::vec3(0.f, 1.f, 0.f));
-        glm::mat4 Projection = perspective(TO_RADIANS(60.f), m_ViewportWidth / m_ViewportWidth, 0.1, 100.f);
-        // glm::mat4 ModelView  = m_Camera.GetView();
-        // glm::mat4 Projection = m_Camera.GetProjection();
+        glm::mat4 World = m_Camera.getWorldMatrix();
+        glm::mat4 ModelView  = m_Camera.getViewMatrix();
+        glm::mat4 Projection = m_Camera.getPerspectiveMatrix();
 
-        /* onIdle() */
-        if (cur_mx != last_mx || cur_my != last_my) {
-            glm::vec3 va    = get_arcball_vector(last_mx, last_my, m_ViewportWidth, m_ViewportWidth);
-            glm::vec3 vb    = get_arcball_vector(cur_mx, cur_my, m_ViewportWidth, m_ViewportWidth);
-            float     angle = acos(std::min(1.0f, glm::dot(va, vb))) * 0.2;
-            // std::cout << "onUpdate:" << angle << std::endl;
-            glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
-            glm::mat3 camera2object        = glm::inverse(glm::mat3(ModelView) * glm::mat3(m_World));
-            glm::vec3 axis_in_object_coord = camera2object * axis_in_camera_coord;
-            // std::cout << "axis:" << axis_in_camera_coord.x << " " << axis_in_camera_coord.y << " "
-            //          << axis_in_camera_coord.z << std::endl;
-
-            m_World = glm::rotate(m_World, glm::degrees(angle), axis_in_object_coord);
-            last_mx = cur_mx;
-            last_my = cur_my;
-        }
-
-        bool isCube = true;
+        bool isCube = false;
         if (isCube) {
             glm::vec3 vertices[] = {
                 // Back face
@@ -455,7 +384,7 @@ public:
                 {-0.5f, 0.5f, -0.5f},  // top-left
 
                 // Front face
-                {0.5f, -0.5f, 0.5},   // bottom-left
+                {-0.5f, -0.5f, 0.5f}, // bottom-left
                 {0.5f, -0.5f, 0.5f},  // bottom-right
                 {0.5f, 0.5f, 0.5f},   // top-right
                 {0.5f, 0.5f, 0.5f},   // top-right
@@ -501,7 +430,7 @@ public:
 
                 for (int32_t j = 0; j < 3; j++) {
                     glm::vec3 vert     = vertices[i + j];
-                    world_coords[j]    = m_World * glm::vec4(vert, 1.f);
+                    world_coords[j]    = World * glm::vec4(vert, 1.f);
                     glm::vec4 eye_pos  = world_coords[j] * ModelView;
                     glm::vec4 clip_pos = eye_pos * Projection;
 
@@ -516,7 +445,7 @@ public:
                         glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
                     glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
                     screen_coords[j]       = screen_coord;
-                    //std::cout << "depth: " << screen_coord.z << std::endl;
+                    // std::cout << "depth: " << screen_coord.z << std::endl;
                 }
                 TGAColor color = TGAColor(i / 36.f * 255, i / 36.f * 255, i / 36.f * 255, 255.f);
                 DrawTriangle(screen_coords, m_Zbuffer, m_Image, color);
@@ -527,10 +456,12 @@ public:
                 glm::vec3            screen_coords[3];
                 glm::vec3            world_coords[3];
                 glm::vec3            ndc_coords[3];
-                float                screen_depths[3];
+
+                float intensity[3];
+                float screen_depths[3];
                 for (int32_t j = 0; j < 3; j++) {
                     glm::vec3 vert      = m_Model->Vert(face[j]);
-                    glm::vec4 world_pos = m_World * glm::vec4(vert, 1.f);
+                    glm::vec4 world_pos = World * glm::vec4(vert, 1.f);
                     glm::vec4 eye_pos   = world_pos * ModelView;
                     glm::vec4 clipPos   = eye_pos * Projection;
 
@@ -542,25 +473,20 @@ public:
 
                     world_coords[j]  = world_pos;
                     screen_depths[j] = screen_coord.z;
+                    intensity[j]     = glm::dot(m_Model->Norm(i, j), light_dir);
                 }
 
                 // 背面剔除
                 if (isBackFacing(ndc_coords))
                     continue;
 
-                glm::vec3 norm =
-                    glm::normalize(glm::cross(world_coords[2] - world_coords[1], (world_coords[1] - world_coords[0])));
-                double intensity = glm::dot(norm, light_dir);
-
-                if (intensity > 0) {
-                    // texture
-                    glm::vec2 uv[3];
-                    for (int k = 0; k < 3; k++) {
-                        uv[k] = m_Model->UV(i, k);
-                    }
-
-                    DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity, screen_depths);
+                // texture
+                glm::vec2 uv[3];
+                for (int k = 0; k < 3; k++) {
+                    uv[k] = m_Model->UV(i, k);
                 }
+
+                DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity, screen_depths);
             }
         }
 #else
@@ -691,12 +617,6 @@ private:
     Model*    m_Model = nullptr;
     float     m_Zbuffer[2000 * 2000];
     Camera    m_Camera;
-
-#ifdef YUJUNDA_ORIGIN
-    glm::mat4 m_World = glm::mat4(1.f);
-#else
-    Matrix4x4 m_World = m_World.identity();
-#endif
 
     double m_Time = 0.f;
 };

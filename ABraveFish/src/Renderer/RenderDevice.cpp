@@ -148,7 +148,7 @@ glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
 }
 
 void DrawTriangle(glm::vec3* screen_coords, float* zbuffer, glm::vec2* uv, TGAImage* image, Model* model,
-                  float intensity, float* screenDepths) {
+                  float* intensity, float* screenDepths) {
     int32_t width  = image->get_width();
     int32_t height = image->get_height();
 
@@ -192,11 +192,11 @@ void DrawTriangle(glm::vec3* screen_coords, float* zbuffer, glm::vec2* uv, TGAIm
                 glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
                 TGAColor  color = model->Diffuse(uvP);
 
-                //float intense = intensity.x * bc_screen.x + intensity[1] * bc_screen.y + intensity[2] * bc_screen.z;
+                float intense = intensity[0] * bc_screen.x + intensity[1] * bc_screen.y + intensity[2] * bc_screen.z;
                 // image->set(P.x, P.y, TGAColor(color.b * intensity, color.g * intensity, color.r * intensity, 255.f));
                 image->set(P.x, P.y, TGAColor(color.b, color.g, color.r, 255.f));
 
-                // image->set(P.x, P.y, TGAColor(255.f * intensity, 255.f * intensity, 255.f * intensity, 255.f));
+                 //image->set(P.x, P.y, TGAColor(255.f * intense, 255.f * intense, 255.f * intense, 255.f));
             }
         }
     }
