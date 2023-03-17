@@ -2,7 +2,7 @@
 
 #include "RenderDevice.h"
 
-#include "Image.h"
+#include "Core/Image.h"
 
 namespace ABraveFish {
 void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, TGAImage* image, TGAColor color) {
@@ -89,6 +89,13 @@ glm::mat4 lookat(glm::vec3 eye, glm::vec3 center, glm::vec3 up) {
  * see http://www.songho.ca/opengl/gl_projectionmatrix.html
  */
 // 透视投影矩阵
+/*
+* Note that the eye coordinates are defined in the right-handed coordinate system, 
+* but NDC uses the left-handed coordinate system.  That is, the camera at the origin
+* is looking along -Z axis in eye space, but it is looking along +Z axis in NDC.
+* Since glFrustum() accepts only positive values of near and far distances,
+* we need to negate them during the construction of GL_PROJECTION matrix.
+*/
 glm::mat4 perspective(float fovy, float aspect, float near, float far) {
     float     z_range = far - near;
     glm::mat4 m(1.f);
@@ -155,7 +162,7 @@ void DrawTriangle(glm::vec3* screen_coords, float* zbuffer, glm::vec2* uv, TGAIm
     // Attention: box must be int
     int32_t bboxmin[2] = {std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max()};
     int32_t bboxmax[2] = {-std::numeric_limits<int32_t>::max(), -std::numeric_limits<int32_t>::max()};
-    int32_t clamp[2]   = {width, height};
+    int32_t clamp[2]   = {width - 1, height - 1};
     for (int32_t i = 0; i < 3; i++) {
         bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)screen_coords[i].x));
         bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)screen_coords[i].y));
@@ -163,16 +170,6 @@ void DrawTriangle(glm::vec3* screen_coords, float* zbuffer, glm::vec2* uv, TGAIm
         bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)screen_coords[i].x));
         bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)screen_coords[i].y));
     }
-
-    // glm::vec2 bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
-    // glm::vec2 bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
-    // glm::vec2 clamp(width - 1, height - 1);
-    // for (int i = 0; i < 3; i++) {
-    //    for (int j = 0; j < 2; j++) {
-    //        bboxmin[j] = std::max(0.f, std::min(bboxmin[j], screen_coords[i][j]));
-    //        bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], screen_coords[i][j]));
-    //    }
-    //}
 
     glm::vec3 P(1.f);
 
@@ -190,17 +187,68 @@ void DrawTriangle(glm::vec3* screen_coords, float* zbuffer, glm::vec2* uv, TGAIm
                 zbuffer[idx] = frag_depth;
 
                 glm::vec2 uvP   = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
-                TGAColor  color = model->Diffuse(uvP);
+                TGAColor  color = model->diffuseSample(uvP);
+                TGAColor  normal = model->normalSample(uvP);
+
+                // TODO: TBN
 
                 float intense = intensity[0] * bc_screen.x + intensity[1] * bc_screen.y + intensity[2] * bc_screen.z;
                 // image->set(P.x, P.y, TGAColor(color.b * intensity, color.g * intensity, color.r * intensity, 255.f));
-                image->set(P.x, P.y, TGAColor(color.b, color.g, color.r, 255.f));
+                image->set(P.x, P.y, TGAColor(normal.b, normal.g, normal.r, 255.f));
 
                  //image->set(P.x, P.y, TGAColor(255.f * intense, 255.f * intense, 255.f * intense, 255.f));
             }
         }
     }
 }
+
+// for cube
+glm::vec3 Barycentric(std::vector<glm::vec3> pts, glm::vec2 P) {
+    glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
+                             glm::vec3({pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - P.y}));
+    // 面积为0的退化三角形？
+    if (std::abs(u.z) < 1)
+        return glm::vec3({-1, 1, 1});
+    return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
+}
+// for cube
+void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor color) {
+    int32_t width  = image->get_width();
+    int32_t height = image->get_height();
+
+    // Attention: box must be int
+    int32_t bboxmin[2] = {width, height};
+    int32_t bboxmax[2] = {0, 0};
+    int32_t clamp[2]   = {width, height};
+    for (int32_t i = 0; i < 3; i++) {
+        bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)pts[i].x));
+        bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)pts[i].y));
+
+        bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)pts[i].x));
+        bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)pts[i].y));
+    }
+    glm::vec3 P(1.f);
+
+    float depths[3];
+    for (int32_t i = 0; i < 3; ++i) {
+        depths[i] = pts[i].z;
+    }
+    for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
+        for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
+            glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
+            if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
+                continue;
+
+            float   depth = interpolateDepth(depths, bc_screen);
+            int32_t idx   = P.x + P.y * width;
+            if (zbuffer[idx] > depth) {
+                zbuffer[idx] = depth;
+                image->set(P.x, P.y, color);
+            }
+        }
+    }
+}
+
 
 // 打印矩阵
 void PrintMatrix(glm::mat4 m) {

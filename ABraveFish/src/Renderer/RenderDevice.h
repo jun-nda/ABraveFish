@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Image.h"
+#include "Core/Image.h"
 #include "glm/glm.hpp"
 #include "model.h"
 
@@ -14,6 +14,10 @@ float     interpolateDepth(float* screenDepth, glm::vec3 weights);
 glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P);
 void      DrawTriangle(glm::vec3* pts, float* zbuffer, glm::vec2* uv, TGAImage* image, Model* model, float* intensity,
                        float* screenDepths);
+// for cube
+glm::vec3 Barycentric(std::vector<glm::vec3> pts, glm::vec2 P);
+void      DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor color);
+
 void      PrintMatrix(glm::mat4 m);
 
 } // namespace ABraveFish

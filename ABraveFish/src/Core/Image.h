@@ -3,7 +3,7 @@
 
 #include <fstream>
 
-namespace ABraveFish{
+namespace ABraveFish {
 #pragma pack(push, 1)
 struct TGA_Header {
     char  idlength;
@@ -35,7 +35,7 @@ struct TGAColor {
         : val(0)
         , bytespp(1) {}
 
-    TGAColor(unsigned char R, unsigned char G, unsigned char B, unsigned char A)
+    TGAColor(unsigned char R, unsigned char G, unsigned char B, unsigned char A = 255.f)
         : r(R)
         , g(G)
         , b(B)
@@ -70,9 +70,9 @@ struct TGAColor {
 class TGAImage {
 protected:
     unsigned char* data;
-    int32_t            width;
-    int32_t            height;
-    int32_t            bytespp;
+    int32_t        width;
+    int32_t        height;
+    int32_t        bytespp;
 
     bool load_rle_data(std::ifstream& in);
     bool unload_rle_data(std::ofstream& out);
@@ -92,14 +92,12 @@ public:
     bool     set(int32_t x, int32_t y, TGAColor c);
     ~TGAImage();
     TGAImage&      operator=(const TGAImage& img);
-    float            get_width();
-    float            get_height();
-    int32_t            get_bytespp();
+    float          get_width();
+    float          get_height();
+    int32_t        get_bytespp();
     unsigned char* buffer();
     void           clear();
 };
 
 } // namespace ABraveFish
 #endif //__IMAGE_H__
-
-

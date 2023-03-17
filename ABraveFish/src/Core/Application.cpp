@@ -6,7 +6,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_opengl3_loader.h"
 
-#include "Renderer/Image.h"
+#include "Core/Image.h"
 #include "Timer.h"
 #include "Window.h"
 #include "glm/glm.hpp"
