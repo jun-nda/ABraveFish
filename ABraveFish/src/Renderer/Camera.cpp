@@ -36,15 +36,13 @@ void Camera::update(float ts) {
     if (cur_mx != last_mx || cur_my != last_my) {
         glm::vec3 va    = get_arcball_vector(last_mx, last_my, m_Width, m_Height);
         glm::vec3 vb    = get_arcball_vector(cur_mx, cur_my, m_Width, m_Height);
+
         float     angle = acos(std::min(1.0f, glm::dot(va, vb))) * 0.2;
-        // std::cout << "onUpdate:" << angle << std::endl;
         glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
         glm::mat3 camera2object        = glm::inverse(glm::mat3(m_ViewMatrix) * glm::mat3(m_WorldMatrix));
         glm::vec3 axis_in_object_coord = camera2object * axis_in_camera_coord;
-        // std::cout << "axis:" << axis_in_camera_coord.x << " " << axis_in_camera_coord.y << " "
-        //          << axis_in_camera_coord.z << std::endl;
 
-        m_WorldMatrix = glm::rotate(m_WorldMatrix, glm::degrees(angle), axis_in_object_coord);
+        m_WorldMatrix = glm::rotate(m_WorldMatrix, glm::degrees(-angle), axis_in_object_coord);
         last_mx       = cur_mx;
         last_my       = cur_my;
     }
@@ -89,7 +87,6 @@ void onMouse(GLFWwindow* window, int button, int action, int mods) {
         arcball_on = true;
         last_mx = cur_mx = x;
         last_my = cur_my = y;
-        // std::cout << "onMouse" << std::endl;
     } else {
         arcball_on = false;
     }

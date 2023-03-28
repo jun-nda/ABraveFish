@@ -14,9 +14,10 @@
 
 #include <glm/glm.hpp>
 #include "Core/Macros.h"
-#include "Renderer/RenderDevice.h"
 #include "Renderer/Camera.h"
+#include "Renderer/Ishader.h"
 #include "Renderer/RenderBuffer.h"
+#include "Renderer/RenderDevice.h"
 #include "Renderer/Util.h"
 
 using namespace ABraveFish;
@@ -25,22 +26,79 @@ const int depth = 255;
 
 glm::vec3 light_dir(0, 0, -1); // define light_dir
 
-struct DrawData {
-    Model* _model;
-    RenderBuffer* _renderbuffer;
-    //Ishader*      shader;
-};
+enum class ShaderType { None = 0, NormalMap = 1 };
 
-void drawTriangle(DrawData ) {
+static ShaderType   shaderType = ShaderType::NormalMap;
+static Ref<IShader> Create() {
+    switch (shaderType) {
+        case ShaderType::None:
+            return nullptr;
+        case ShaderType::NormalMap:
+            return CreateRef<NormalMapShader>();
+    }
 
+    return nullptr;
 }
 
+class NormalMapShader : public IShader {
+public:
+    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override {}
+    virtual bool              fragment(shader_struct_v2f* v2f, TGAColor& color) override {}
+
+private:
+    glm::vec3 _lightDir;
+    TGAColor  _ligthColor;
+};
+
+struct DrawData {
+    Model*        _model;
+    RenderBuffer* _renderbuffer;
+    Ref<IShader>  _shader;
+};
+
+void drawTriangle(DrawData* drawData) {
+    // a2v struct
+    shader_struct_a2v a2v;
+
+    Model* model = drawData->_model;
+    for (int32_t i = 0; i < model->getFaceCount(); i++) {
+        std::vector<int32_t> face = model->getFace(i);
+        glm::vec3            screen_coords[3];
+        glm::vec3            world_coords[3];
+        glm::vec3            ndc_coords[3];
+
+        float intensity[3];
+        float screen_depths[3];
+
+        for (int32_t j = 0; j < 3; j++) {
+            a2v.obj_pos         = model->getVert(face[j]);
+            glm::vec4 world_pos = glm::vec4(vert, 1.f) * World;
+            glm::vec4 eye_pos   = world_pos * ModelView;
+            glm::vec4 clipPos   = eye_pos * Projection;
+        }
+    }
+}
+
+void applicationToVertShader(DrawData* drawData, shader_struct_a2v a2v) {
+    for (int32_t i = 0; i < m_Model->getFaceCount(); i++) {
+    }
+}
+
+void vertToNext() {
+    glm::vec4 ndcPos       = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
+    ndc_coords[j]          = ndcPos;
+    glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
+    screen_coords[j]       = screen_coord;
+
+    world_coords[j]  = world_pos;
+    screen_depths[j] = screen_coord.z;
+    intensity[j]     = glm::dot(m_Model->getNormal(i, j), light_dir);
+}
 
 class BraveFishLayer : public Layer {
 public:
     BraveFishLayer()
-        : m_Image(nullptr)
-         {}
+        : m_Image(nullptr) {}
 
     virtual void OnAttach() override {
         for (int i = 2000 * 2000; i--; m_Zbuffer[i] = 1.f)
@@ -57,13 +115,13 @@ public:
     }
 
     virtual void OnUIRender() {
-        bool is = true;
+        bool  is = true;
         Timer timer;
 
         ImGui::Begin("Settings");
         ImGui::Text("yujunda");
         ImGui::Text("Last render: %.3fms", m_Time);
-        //ImGui::Text();
+        // ImGui::Text();
 
         ImGui::End();
 
@@ -97,9 +155,13 @@ public:
             std::fill(m_Zbuffer, m_Zbuffer + 2000 * 2000, 1.f);
         }
 
-        glm::mat4 World = m_Camera.getWorldMatrix();
+        glm::mat4 World      = m_Camera.getWorldMatrix();
         glm::mat4 ModelView  = m_Camera.getViewMatrix();
         glm::mat4 Projection = m_Camera.getPerspectiveMatrix();
+
+        m_DrawData._shader = Create();
+        shader_struct_a2v a2v;
+        applicationToVertShader(&m_DrawData, a2v);
 
         bool isCube = false;
         if (isCube) {
@@ -182,7 +244,7 @@ public:
                 float screen_depths[3];
                 for (int32_t j = 0; j < 3; j++) {
                     glm::vec3 vert      = m_Model->getVert(face[j]);
-                    glm::vec4 world_pos = World * glm::vec4(vert, 1.f);
+                    glm::vec4 world_pos = glm::vec4(vert, 1.f) * World;
                     glm::vec4 eye_pos   = world_pos * ModelView;
                     glm::vec4 clipPos   = eye_pos * Projection;
 
@@ -223,6 +285,9 @@ private:
     Camera    m_Camera;
 
     double m_Time = 0.f;
+
+    // shader
+    DrawData m_DrawData;
 };
 
 ABraveFish::Application* ABraveFish::CreateApplication() {
