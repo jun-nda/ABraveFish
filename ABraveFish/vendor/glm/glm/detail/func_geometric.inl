@@ -159,7 +159,7 @@ namespace detail
 	template<typename T>
 	GLM_FUNC_QUALIFIER GLM_CONSTEXPR T dot(T x, T y)
 	{
-		GLM_STATIC_ASSERT(std::numeric_limits<T>::is_iec559, "'dot' accepts only floating-point inputs");
+		//GLM_STATIC_ASSERT(std::numeric_limits<T>::is_iec559, "'dot' accepts only floating-point inputs");
 		return x * y;
 	}
 

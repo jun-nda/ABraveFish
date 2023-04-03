@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Image.h"
+#include "Core/Color.h"
 
 namespace ABraveFish {
 class RenderBuffer {

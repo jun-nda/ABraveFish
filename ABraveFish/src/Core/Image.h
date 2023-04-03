@@ -26,7 +26,7 @@ struct TGAColor {
         struct {
             unsigned char r, g, b, a;
         };
-        unsigned char raw[4];
+        unsigned char bgra[4];
         unsigned int  val;
     };
     int32_t bytespp;
@@ -46,7 +46,7 @@ struct TGAColor {
         : val(v)
         , bytespp(bpp) {}
 
-    TGAColor(const Color& c)
+    TGAColor(const TGAColor& c)
         : val(c.val)
         , bytespp(c.bytespp) {}
 
@@ -54,11 +54,11 @@ struct TGAColor {
         : val(0)
         , bytespp(bpp) {
         for (int32_t i = 0; i < bpp; i++) {
-            raw[i] = p[i];
+            bgra[i] = p[i];
         }
     }
 
-    TGAColor& operator=(const Color& c) {
+    TGAColor& operator=(const TGAColor& c) {
         if (this != &c) {
             bytespp = c.bytespp;
             val     = c.val;

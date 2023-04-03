@@ -4,11 +4,23 @@
 #include "Core/Image.h"
 
 #include "RenderBuffer.h"
-#include "RenderSystem.h"
 
 #include "glm/glm.hpp"
+#include "Core/Macros.h"
+#include "Model.h"
 
 namespace ABraveFish {
+
+struct Transform {
+    glm::mat4 _model;
+    glm::mat4 _view;
+    glm::mat4 _projection;
+    Transform() {}
+    Transform(glm::mat4 model, glm::mat4 view, glm::mat4 projection)
+        : _model(model)
+        , _view(view)
+        , _projection(projection) {}
+};
 
 struct Material {
     TGAImage* _diffuseMap;
@@ -45,7 +57,7 @@ constexpr static ShaderType shaderType = ShaderType::BlinnShader;
 class Shader {
 public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v)                 = 0;
-    virtual bool              fragment(shader_struct_v2f* v2f, Color& color) = 0;
+    virtual bool              fragment(shader_struct_v2f* v2f, Color color) = 0;
 
     void setTransform(glm::mat4 model, glm::mat4 view, glm::mat4 projection);
 
@@ -57,16 +69,25 @@ protected:
     Material  _material;
 };
 
+struct DrawData {
+    Model*  _model;
+    Ref<Shader> _shader;
+     Transform   _transform;
+    float*    _zBuffer;
+    TGAImage* image;
+};
+
+
 class BlinnShader : public Shader {
 public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
-    virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
+    virtual bool              fragment(shader_struct_v2f* v2f, Color color) override;
 
     glm::vec3 worldSpaceViewDir(glm::vec3 worldPos);
 
     Color diffuseSample(const glm::vec2& uv);
 
-    bool isInShadow(glm::vec4 depthPos, float n_dot_l);
+    int isInShadow(glm::vec4 depthPos, float n_dot_l) { return 1; };
 
 private:
     glm::vec3 _lightDir;

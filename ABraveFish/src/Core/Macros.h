@@ -1,5 +1,4 @@
-#ifndef MACRO_H
-#define MACRO_H
+#pragma once
 
 #define EPSILON 1e-5f
 #define PI 3.1415927f
@@ -15,9 +14,8 @@
 
 #define GLM_SWIZZLE
 
-float saturate(float f) { return f < 0 ? 0 : (f > 1 ? 1 : f); } 
-
 namespace ABraveFish {
+
 template <typename T>
 using Scope = std::unique_ptr<T>;
 template <typename T, typename... Args>
@@ -33,4 +31,3 @@ constexpr Ref<T> CreateRef(Args&&... args) {
 }
 } // namespace ABraveFish
 
-#endif

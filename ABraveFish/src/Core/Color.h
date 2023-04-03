@@ -2,6 +2,7 @@
 #include <cassert>
 #include "Image.h"
 
+namespace ABraveFish {
 class Color {
 public:
     float r, g, b, a;
@@ -26,3 +27,4 @@ public:
 
     Color operator*(const Color& color) const;
 };
+}

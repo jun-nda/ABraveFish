@@ -3,10 +3,9 @@
 #include "Core/Image.h"
 #include "Shader.h"
 #include "RenderDevice.h"
-#include "RenderSystem.h"
 
 namespace ABraveFish {
-void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, TGAImage* image, Color color) {
+void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, TGAImage* image, TGAColor color) {
     bool steep = false;
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
         std::swap(x0, y0);
@@ -255,7 +254,7 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs) {
             interpolate_varyings(v2fs, &interpolate_v2f, sizeof(shader_struct_v2f), bc_screen, recip_w);
 
             glm::vec2 uvP = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
-            Color  color;
+            TGAColor  color;
             bool      discard = data->_shader->fragment(&interpolate_v2f, color);
 
             if (!discard) {
@@ -276,7 +275,7 @@ glm::vec3 Barycentric(std::vector<glm::vec3> pts, glm::vec2 P) {
     return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
 }
 // for cube
-void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, Color color) {
+void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor color) {
     int32_t width  = image->get_width();
     int32_t height = image->get_height();
 

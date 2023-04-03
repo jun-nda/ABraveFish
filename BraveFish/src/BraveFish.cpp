@@ -21,11 +21,10 @@
 #include <glm/glm.hpp>
 #include "Core/Macros.h"
 #include "Renderer/Camera.h"
-#include "Renderer/Ishader.h"
+#include "Renderer/Shader.h"
 #include "Renderer/RenderBuffer.h"
 #include "Renderer/RenderDevice.h"
 #include "Renderer/Util.h"
-#include "Renderer/RenderSystem.h"
 
 using namespace ABraveFish;
 
@@ -65,7 +64,7 @@ void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v) {
 
         // triangle processing
         for (int32_t j = 0; j < 3; j++) {
-            a2v->_modelPos = model->getVert(face[j]);
+            a2v->_objPos = model->getVert(face[j]);
 
             // vertex shading
             v2fs[j] = shader->vertex(a2v);
@@ -157,7 +156,7 @@ public:
 
         m_DrawData._shader    = Create();
         m_DrawData._transform = {World, ModelView, Projection};
-        applicationToVertShader(&m_DrawData, a2v);
+        vertexProcessing(&m_DrawData, &a2v);
 
         bool isCube = false;
         if (isCube) {
@@ -231,7 +230,6 @@ public:
             }
         } else {
 
-            }
         }
 
         m_Image->flip_vertically(); // i want to have the origin at the left bottom corner of the image
