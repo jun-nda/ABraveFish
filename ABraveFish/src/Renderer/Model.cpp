@@ -83,9 +83,9 @@ glm::vec3 Model::getNormal(int32_t iface, int32_t nvert) {
     return glm::normalize(_norms[idx]);
 }
 
-TGAColor Model::diffuseSample(glm::vec2 uv) { return _diffuseMap.get(uv.x, uv.y); }
-TGAColor Model::normalSample(glm::vec2 uv) { return _normalMap.get(uv.x, uv.y); }
-TGAColor Model::specularSample(glm::vec2 uv) { return _specularMap.get(uv.x, uv.y); }
+Color Model::diffuseSample(glm::vec2 uv) { return _diffuseMap.get(uv.x, uv.y); }
+Color Model::normalSample(glm::vec2 uv) { return _normalMap.get(uv.x, uv.y); }
+Color Model::specularSample(glm::vec2 uv) { return _specularMap.get(uv.x, uv.y); }
 
 void Model::loadTexture(std::string filename, const char* suffix, TGAImage& img) {
     std::string texfile(filename);

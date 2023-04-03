@@ -11,11 +11,11 @@ public:
 
     void     setDepth(int x, int y, float depth);
     float    getDepth(int x, int y);
-    void     setColor(int x, int y, TGAColor color);
-    TGAColor getColor(int x, int y);
+    void     setColor(int x, int y, Color color);
+    Color getColor(int x, int y);
 
     void release();
-    void clearColor(TGAColor color);
+    void clearColor(Color color);
     void clearDepth(float depth);
 
 private:

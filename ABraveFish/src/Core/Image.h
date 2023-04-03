@@ -46,7 +46,7 @@ struct TGAColor {
         : val(v)
         , bytespp(bpp) {}
 
-    TGAColor(const TGAColor& c)
+    TGAColor(const Color& c)
         : val(c.val)
         , bytespp(c.bytespp) {}
 
@@ -58,7 +58,7 @@ struct TGAColor {
         }
     }
 
-    TGAColor& operator=(const TGAColor& c) {
+    TGAColor& operator=(const Color& c) {
         if (this != &c) {
             bytespp = c.bytespp;
             val     = c.val;

@@ -13,6 +13,10 @@
 #define UNUSED_VAR(x) ((void)(x))
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
 
+#define GLM_SWIZZLE
+
+float saturate(float f) { return f < 0 ? 0 : (f > 1 ? 1 : f); } 
+
 namespace ABraveFish {
 template <typename T>
 using Scope = std::unique_ptr<T>;

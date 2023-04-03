@@ -17,9 +17,9 @@ public:
     glm::vec2            getUV(int32_t iface, int32_t nvert);
     std::vector<int32_t> getFace(int32_t idx); // 拿到第idx个面的三个顶点数据vert的索引
 
-    TGAColor diffuseSample(glm::vec2 uv);
-    TGAColor normalSample(glm::vec2 uv);
-    TGAColor specularSample(glm::vec2 uv);
+    Color diffuseSample(glm::vec2 uv);
+    Color normalSample(glm::vec2 uv);
+    Color specularSample(glm::vec2 uv);
 
 public:
 

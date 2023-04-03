@@ -1,6 +1,12 @@
 ﻿/*
  * 空间变换部分的两个坑： 1. glm矩阵乘法是反着的。 2. games101只讲了mvp，之后还要进行透视除法。
  */
+/*
+* TODO:
+* 1. tgaimage to renderbuffer
+* 
+*/
+
 #include "Core/Application.h"
 #include "Core/EntryPoint.h"
 
@@ -19,6 +25,7 @@
 #include "Renderer/RenderBuffer.h"
 #include "Renderer/RenderDevice.h"
 #include "Renderer/Util.h"
+#include "Renderer/RenderSystem.h"
 
 using namespace ABraveFish;
 
@@ -26,74 +33,58 @@ const int depth = 255;
 
 glm::vec3 light_dir(0, 0, -1); // define light_dir
 
-enum class ShaderType { None = 0, NormalMap = 1 };
+// void drawTriangle(DrawData* drawData) {
+//    // a2v struct
+//    shader_struct_a2v a2v;
+//
+//    Model* model = drawData->_model;
+//    for (int32_t i = 0; i < model->getFaceCount(); i++) {
+//        std::vector<int32_t> face = model->getFace(i);
+//        glm::vec3            screen_coords[3];
+//        glm::vec3            world_coords[3];
+//        glm::vec3            ndc_coords[3];
+//
+//
+//    }
+//}
+//
+void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v) {
+    shader_struct_v2f v2fs[3];
 
-static ShaderType   shaderType = ShaderType::NormalMap;
-static Ref<IShader> Create() {
-    switch (shaderType) {
-        case ShaderType::None:
-            return nullptr;
-        case ShaderType::NormalMap:
-            return CreateRef<NormalMapShader>();
-    }
+    auto model = drawData->_model;
+    auto shader = drawData->_shader;
 
-    return nullptr;
-}
-
-class NormalMapShader : public IShader {
-public:
-    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override {}
-    virtual bool              fragment(shader_struct_v2f* v2f, TGAColor& color) override {}
-
-private:
-    glm::vec3 _lightDir;
-    TGAColor  _ligthColor;
-};
-
-struct DrawData {
-    Model*        _model;
-    RenderBuffer* _renderbuffer;
-    Ref<IShader>  _shader;
-};
-
-void drawTriangle(DrawData* drawData) {
-    // a2v struct
-    shader_struct_a2v a2v;
-
-    Model* model = drawData->_model;
     for (int32_t i = 0; i < model->getFaceCount(); i++) {
         std::vector<int32_t> face = model->getFace(i);
         glm::vec3            screen_coords[3];
         glm::vec3            world_coords[3];
         glm::vec3            ndc_coords[3];
 
-        float intensity[3];
-        float screen_depths[3];
+        //float intensity[3];
+        //float screen_depths[3];
 
+        // triangle processing
         for (int32_t j = 0; j < 3; j++) {
-            a2v.obj_pos         = model->getVert(face[j]);
-            glm::vec4 world_pos = glm::vec4(vert, 1.f) * World;
-            glm::vec4 eye_pos   = world_pos * ModelView;
-            glm::vec4 clipPos   = eye_pos * Projection;
+            a2v->_modelPos = model->getVert(face[j]);
+
+            // vertex shading
+            v2fs[j] = shader->vertex(a2v);
         }
+
+        rasterization(drawData, v2fs);
     }
 }
-
-void applicationToVertShader(DrawData* drawData, shader_struct_a2v a2v) {
-    for (int32_t i = 0; i < m_Model->getFaceCount(); i++) {
-    }
-}
-
-void vertToNext() {
-    glm::vec4 ndcPos       = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
-    ndc_coords[j]          = ndcPos;
-    glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
-    screen_coords[j]       = screen_coord;
-
-    world_coords[j]  = world_pos;
-    screen_depths[j] = screen_coord.z;
-    intensity[j]     = glm::dot(m_Model->getNormal(i, j), light_dir);
-}
+//
+// void vertToNext() {
+//    glm::vec4 ndcPos       = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
+//    ndc_coords[j]          = ndcPos;
+//    glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
+//    screen_coords[j]       = screen_coord;
+//
+//    world_coords[j]  = world_pos;
+//    screen_depths[j] = screen_coord.z;
+//    intensity[j]     = glm::dot(m_Model->getNormal(i, j), light_dir);
+//}
 
 class BraveFishLayer : public Layer {
 public:
@@ -159,8 +150,13 @@ public:
         glm::mat4 ModelView  = m_Camera.getViewMatrix();
         glm::mat4 Projection = m_Camera.getPerspectiveMatrix();
 
-        m_DrawData._shader = Create();
         shader_struct_a2v a2v;
+        a2v._model            = m_Camera.getWorldMatrix();
+        a2v._view             = m_Camera.getViewMatrix();
+        a2v._projection       = m_Camera.getPerspectiveMatrix();
+
+        m_DrawData._shader    = Create();
+        m_DrawData._transform = {World, ModelView, Projection};
         applicationToVertShader(&m_DrawData, a2v);
 
         bool isCube = false;
@@ -234,42 +230,7 @@ public:
                 DrawTriangle(screen_coords, m_Zbuffer, m_Image, color);
             }
         } else {
-            for (int32_t i = 0; i < m_Model->getFaceCount(); i++) {
-                std::vector<int32_t> face = m_Model->getFace(i);
-                glm::vec3            screen_coords[3];
-                glm::vec3            world_coords[3];
-                glm::vec3            ndc_coords[3];
 
-                float intensity[3];
-                float screen_depths[3];
-                for (int32_t j = 0; j < 3; j++) {
-                    glm::vec3 vert      = m_Model->getVert(face[j]);
-                    glm::vec4 world_pos = glm::vec4(vert, 1.f) * World;
-                    glm::vec4 eye_pos   = world_pos * ModelView;
-                    glm::vec4 clipPos   = eye_pos * Projection;
-
-                    glm::vec4 ndcPos =
-                        glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
-                    ndc_coords[j]          = ndcPos;
-                    glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndcPos);
-                    screen_coords[j]       = screen_coord;
-
-                    world_coords[j]  = world_pos;
-                    screen_depths[j] = screen_coord.z;
-                    intensity[j]     = glm::dot(m_Model->getNormal(i, j), light_dir);
-                }
-
-                // 背面剔除
-                if (isBackFacing(ndc_coords))
-                    continue;
-
-                // texture
-                glm::vec2 uv[3];
-                for (int k = 0; k < 3; k++) {
-                    uv[k] = m_Model->getUV(i, k);
-                }
-
-                DrawTriangle(screen_coords, m_Zbuffer, uv, m_Image, m_Model, intensity, screen_depths);
             }
         }
 
