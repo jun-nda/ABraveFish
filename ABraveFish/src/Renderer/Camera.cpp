@@ -15,7 +15,8 @@ const glm::vec3 UP(0.f, 1.f, 0.f);
 
 const float NEAR = 0.1f;
 const float FAR  = 1000.f;
-const float FOV  = TO_RADIANS(60);
+
+float zoom  = 60.f;
 
 /* Arcbal */
 int32_t last_mx = 0, last_my = 0, cur_mx = 0, cur_my = 0;
@@ -24,8 +25,9 @@ int32_t arcball_on = false;
 glm::vec3 get_arcball_vector(int x, int y, int width, int height);
 void      onMouse(GLFWwindow* window, int button, int action, int mods);
 void      onMotion(GLFWwindow* window, double x, double y);
+void      onScroll(GLFWwindow* window, double x, double y);
 
-/*
+    /*
  * https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Arcball
  */
 
@@ -53,13 +55,14 @@ void Camera::updateTransformMatrix(int32_t width, int32_t height) {
     m_Height = height;
 
     m_ViewMatrix        = lookat(m_Pos, m_Target, UP);
-    m_PerspectiveMatrix = perspective(FOV, m_Width / m_Height, NEAR, FAR);
+    m_PerspectiveMatrix = perspective(TO_RADIANS(zoom), m_Width / m_Height, NEAR, FAR);
 }
 
 void Camera::initMouseCallBack() {
     GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
     glfwSetMouseButtonCallback(window, onMouse);
     glfwSetCursorPosCallback(window, onMotion);
+    glfwSetScrollCallback(window, onScroll);
 }
 
 /**
@@ -97,6 +100,14 @@ void onMotion(GLFWwindow* window, double x, double y) {
         cur_mx = x;
         cur_my = y;
     }
+}
+
+void onScroll( GLFWwindow* window, double x, double y ) {
+    zoom -= (float)y;
+    if (zoom < 1.0f)
+        zoom = 1.0f;
+    if (zoom > 89.0f)
+        zoom = 89.0f;
 }
 
 } // namespace ABraveFish

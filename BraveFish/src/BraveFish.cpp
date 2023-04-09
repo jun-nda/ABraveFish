@@ -2,10 +2,10 @@
  * 空间变换部分的两个坑： 1. glm矩阵乘法是反着的。 2. games101只讲了mvp，之后还要进行透视除法。
  */
 /*
-* TODO:
-* 1. tgaimage to renderbuffer
-* 
-*/
+ * TODO:
+ * 1. tgaimage to renderbuffer
+ *
+ */
 
 #include "Core/Application.h"
 #include "Core/EntryPoint.h"
@@ -22,9 +22,9 @@
 #include <glm/glm.hpp>
 #include "Core/Macros.h"
 #include "Renderer/Camera.h"
-#include "Renderer/Shader.h"
 #include "Renderer/RenderBuffer.h"
 #include "Renderer/RenderDevice.h"
+#include "Renderer/Shader.h"
 #include "Renderer/Util.h"
 
 using namespace ABraveFish;
@@ -33,32 +33,17 @@ const int depth = 255;
 
 glm::vec3 light_dir(0, 0, -1); // define light_dir
 
-// void drawTriangle(DrawData* drawData) {
-//    // a2v struct
-//    shader_struct_a2v a2v;
-//
-//    Model* model = drawData->_model;
-//    for (int32_t i = 0; i < model->getFaceCount(); i++) {
-//        std::vector<int32_t> face = model->getFace(i);
-//        glm::vec3            screen_coords[3];
-//        glm::vec3            world_coords[3];
-//        glm::vec3            ndc_coords[3];
-//
-//
-//    }
-//}
-//
 void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v) {
     shader_struct_v2f v2fs[3];
 
-    auto model = drawData->_model;
+    auto model  = drawData->_model;
     auto shader = drawData->_shader;
 
     for (int32_t i = 0; i < model->getFaceCount(); i++) {
         std::vector<int32_t> face = model->getFace(i);
         for (int32_t j = 0; j < 3; j++) {
-            a2v->_objPos = model->getVert(face[j]);
-            a2v->_objNormal = model->getNormal(i,j);
+            a2v->_objPos    = model->getVert(face[j]);
+            a2v->_objNormal = model->getNormal(i, j);
             a2v->_uv        = model->getUV(i, j);
             // vertex shading
             v2fs[j] = shader->vertex(a2v);
@@ -91,9 +76,8 @@ public:
 
     virtual void OnUpdate(float ts) override {
         if (m_Image) {
-            delete m_Image;
-            m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
             m_Camera.update(ts);
+            m_Camera.updateTransformMatrix(m_ViewportWidth, m_ViewportHeight);
             Render();
         }
     }
@@ -118,12 +102,16 @@ public:
             delete m_Image;
             m_Image = new TGAImage(m_ViewportWidth, m_ViewportHeight, TGAImage::RGBA);
             m_Camera.updateTransformMatrix(m_ViewportWidth, m_ViewportHeight);
-            Render();
+        }
+        
+        if (!m_Texid)
+            m_Texid = registeOpenGLTexture (m_ViewportWidth, m_ViewportHeight);
+
+        if (m_Image) {
+            refreshOpenGLTexture(m_Image->buffer(), m_ViewportWidth, m_ViewportHeight);
+            ImGui::Image((ImTextureID)m_Texid, ImVec2(m_ViewportWidth, m_ViewportHeight));
         }
 
-        if (m_Image)
-            ImGui::Image((ImTextureID)registeOpenGLTexture(m_Image->buffer(), m_ViewportWidth, m_ViewportHeight),
-                         ImVec2(m_ViewportWidth, m_ViewportHeight));
 
         ImGui::End();
 
@@ -134,38 +122,36 @@ public:
         if (!m_Model) {
             m_Model = new Model("obj/african_head/african_head.obj");
         }
-
+        if (m_Image) {
+            m_Image->clear();
+        }
         if (m_Zbuffer) {
             std::fill(m_Zbuffer, m_Zbuffer + 2000 * 2000, 1.f);
         }
 
         glm::mat4 model      = m_Camera.getWorldMatrix();
-        glm::mat4 view  = m_Camera.getViewMatrix();
+        glm::mat4 view       = m_Camera.getViewMatrix();
         glm::mat4 Projection = m_Camera.getPerspectiveMatrix();
-        glm::mat4 modelInv   =  glm::inverse(model);
+        glm::mat4 modelInv   = glm::inverse(model);
 
         shader_struct_a2v a2v;
-        a2v._model            = m_Camera.getWorldMatrix();
-        a2v._view             = m_Camera.getViewMatrix();
-        a2v._projection       = m_Camera.getPerspectiveMatrix();
+        a2v._model      = m_Camera.getWorldMatrix();
+        a2v._view       = m_Camera.getViewMatrix();
+        a2v._projection = m_Camera.getPerspectiveMatrix();
 
-        m_DrawData._shader    = Create();
+        if (!m_DrawData._shader) {
+            m_DrawData._shader = Create();
+        }
         m_DrawData._transform = {model, view, Projection, modelInv};
 
         m_DrawData._shader->setTransform(model, view, Projection, modelInv);
-        m_DrawData._shader->setMaterial({
-            &m_Model->_diffuseMap,
-            &m_Model->_normalMap,
-            &m_Model->_specularMap,
-            Color(1.f,1.f,1.f),
-            Color(1.f,1.f,1.f),
-            50
-        });
-        std::dynamic_pointer_cast<BlinnShader>(m_DrawData._shader)->setLightData(light_dir,Color(1.f,0.f,0.f));
-        m_DrawData._model     = m_Model;
-        //m_DrawData._rdBuffer  = new RenderBuffer(m_ViewportWidth, m_ViewportHeight);
+        m_DrawData._shader->setMaterial({&m_Model->_diffuseMap, &m_Model->_normalMap, &m_Model->_specularMap,
+                                         Color(1.f, 1.f, 1.f), Color(1.f, 1.f, 1.f), 50});
+        std::dynamic_pointer_cast<BlinnShader>(m_DrawData._shader)->setLightData(light_dir, Color(1.f, 0.f, 0.f));
+        m_DrawData._model = m_Model;
+        // m_DrawData._rdBuffer  = new RenderBuffer(m_ViewportWidth, m_ViewportHeight);
         m_DrawData._image   = m_Image;
-        m_DrawData._zBuffer   = m_Zbuffer;
+        m_DrawData._zBuffer = m_Zbuffer;
 
         vertexProcessing(&m_DrawData, &a2v);
 
@@ -240,12 +226,10 @@ public:
                 DrawTriangle(screen_coords, m_Zbuffer, m_Image, color);
             }
         } else {
-
         }
-        //m_Image->setData(m_DrawData._rdBuffer->_colorBuffer);
+        // m_Image->setData(m_DrawData._rdBuffer->_colorBuffer);
         m_Image->flip_vertically(); // i want to have the origin at the left bottom corner of the image
         m_Image->write_tga_file("output.tga");
-
     }
 
 private:
@@ -259,6 +243,9 @@ private:
 
     // shader
     DrawData m_DrawData;
+
+    // imgui
+    uint32_t m_Texid = 0;
 };
 
 ABraveFish::Application* ABraveFish::CreateApplication() {
