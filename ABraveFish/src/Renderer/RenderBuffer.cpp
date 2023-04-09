@@ -4,20 +4,20 @@
 
 namespace ABraveFish {
 RenderBuffer::RenderBuffer(int width, int height) {
-    int   color_buffer_size = width * height * 4;
-    int   depth_buffer_size = sizeof(float) * width * height;
-    Color default_color     = {0, 0, 0, 1};
-    float default_depth     = 1;
+    int32_t   colorBufferSize = width * height * 4;
+    int32_t   depthBufferSize = sizeof(float) * width * height;
+    Color defaultColor     = {0, 0, 0, 1};
+    float defaultDepth     = 1;
 
     assert(width > 0 && height > 0);
 
     this->_width       = width;
-    this->_width       = height;
-    this->_colorBuffer = (unsigned char*)malloc(color_buffer_size);
-    this->_depthBuffer = (float*)malloc(depth_buffer_size);
+    this->_height      = height;
+    this->_colorBuffer = (unsigned char*)malloc(colorBufferSize);
+    this->_depthBuffer = (float*)malloc(depthBufferSize);
 
-    this->clearColor(default_color);
-    this->clearDepth(default_depth);
+    this->clearColor(defaultColor);
+    this->clearDepth(defaultDepth);
 }
 
 RenderBuffer::~RenderBuffer() {

@@ -358,4 +358,6 @@ bool TGAImage::scale(int32_t w, int32_t h) {
     height = h;
     return true;
 }
+
+void TGAImage::setData(unsigned char* bufferdata) { data = bufferdata; }
 } // namespace ABraveFish

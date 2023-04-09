@@ -22,7 +22,10 @@ public:
     TGAColor specularSample(glm::vec2 uv);
 
 public:
-
+    // textures
+    TGAImage _diffuseMap;
+    TGAImage _normalMap;
+    TGAImage _specularMap;
 private:
     void loadTexture(std::string filename, const char* suffix, TGAImage& img);
 
@@ -31,11 +34,6 @@ private:
     std::vector<std::vector<glm::vec3>> _faces; // attention, this Vec3 means vertex/uv/normal
     std::vector<glm::vec3>              _norms;
     std::vector<glm::vec2>              _uv;
-
-    // textures
-    TGAImage                            _diffuseMap;
-    TGAImage                            _normalMap;
-    TGAImage                            _specularMap;
 };
 } // namespace ABraveFish
 

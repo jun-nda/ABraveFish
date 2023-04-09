@@ -181,12 +181,12 @@ void interpolate_varyings(shader_struct_v2f* v2f, shader_struct_v2f* ret, int si
 }
 
 void rasterization(DrawData* data, shader_struct_v2f* v2fs) {
-    auto image   = data->image;
+    auto rdBuffer   = data->_image;
     auto zbuffer = data->_zBuffer;
     auto model   = data->_model;
 
-    int32_t width  = image->get_width();
-    int32_t height = image->get_height();
+    int32_t width  = rdBuffer->get_width();
+    int32_t height = rdBuffer->get_height();
 
     glm::vec3 ndc_coords[3];
 
@@ -254,11 +254,11 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs) {
             interpolate_varyings(v2fs, &interpolate_v2f, sizeof(shader_struct_v2f), bc_screen, recip_w);
 
             glm::vec2 uvP = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
-            TGAColor  color;
+            Color  color;
             bool      discard = data->_shader->fragment(&interpolate_v2f, color);
 
             if (!discard) {
-                image->set(P.x, P.y, color);
+                rdBuffer->set(P.x, P.y, TGAColor(color.r * 255.f, color.g * 255.f, color.b * 255.f));
                 zbuffer[idx] = frag_depth;
             }
         }

@@ -5,9 +5,9 @@
 
 #include "RenderBuffer.h"
 
-#include "glm/glm.hpp"
 #include "Core/Macros.h"
 #include "Model.h"
+#include "glm/glm.hpp"
 
 namespace ABraveFish {
 
@@ -15,11 +15,14 @@ struct Transform {
     glm::mat4 _model;
     glm::mat4 _view;
     glm::mat4 _projection;
+    glm::mat4 _modelInv;
     Transform() {}
-    Transform(glm::mat4 model, glm::mat4 view, glm::mat4 projection)
+    Transform(glm::mat4 model, glm::mat4 view, glm::mat4 projection, glm::mat4 modelInv)
         : _model(model)
         , _view(view)
-        , _projection(projection) {}
+        , _projection(projection)
+        , _modelInv(modelInv)
+    {}
 };
 
 struct Material {
@@ -56,13 +59,15 @@ constexpr static ShaderType shaderType = ShaderType::BlinnShader;
 
 class Shader {
 public:
-    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v)                 = 0;
-    virtual bool              fragment(shader_struct_v2f* v2f, Color color) = 0;
+    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v)                = 0;
+    virtual bool              fragment(shader_struct_v2f* v2f, Color& color) = 0;
 
-    void setTransform(glm::mat4 model, glm::mat4 view, glm::mat4 projection);
+    void setTransform(glm::mat4 model, glm::mat4 view, glm::mat4 projection, glm::mat4 modelInv);
+    void setMaterial(const Material& material);
 
-    glm::vec4 object2ClipPos(glm::vec3 objPos);
-    glm::vec3 object2WorldPos(glm::vec3 objPos);
+    glm::vec4 object2ClipPos(const glm::vec3& objPos);
+    glm::vec3 object2WorldPos(const glm::vec3& objPos);
+    glm::vec3 object2WorldNormal(const glm::vec3& objNormal);
 
 protected:
     Transform _transform;
@@ -70,19 +75,21 @@ protected:
 };
 
 struct DrawData {
-    Model*  _model;
-    Ref<Shader> _shader;
-     Transform   _transform;
-    float*    _zBuffer;
-    TGAImage* image;
-};
+    Model*        _model;
+    float*        _zBuffer;
+    //RenderBuffer* _rdBuffer;
+    TGAImage* _image;
 
+    Ref<Shader> _shader;
+    Transform   _transform;
+};
 
 class BlinnShader : public Shader {
 public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
-    virtual bool              fragment(shader_struct_v2f* v2f, Color color) override;
+    virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
 
+    void      setLightData(const glm::vec3& dir, const Color& color);
     glm::vec3 worldSpaceViewDir(glm::vec3 worldPos);
 
     Color diffuseSample(const glm::vec2& uv);

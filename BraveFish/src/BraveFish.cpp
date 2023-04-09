@@ -11,6 +11,7 @@
 #include "Core/EntryPoint.h"
 
 #include <iostream>
+#include <memory>
 
 #include "Core/Layer.h"
 #include "Core/Timer.h"
@@ -55,17 +56,10 @@ void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v) {
 
     for (int32_t i = 0; i < model->getFaceCount(); i++) {
         std::vector<int32_t> face = model->getFace(i);
-        glm::vec3            screen_coords[3];
-        glm::vec3            world_coords[3];
-        glm::vec3            ndc_coords[3];
-
-        //float intensity[3];
-        //float screen_depths[3];
-
-        // triangle processing
         for (int32_t j = 0; j < 3; j++) {
             a2v->_objPos = model->getVert(face[j]);
-
+            a2v->_objNormal = model->getNormal(i,j);
+            a2v->_uv        = model->getUV(i, j);
             // vertex shading
             v2fs[j] = shader->vertex(a2v);
         }
@@ -145,9 +139,10 @@ public:
             std::fill(m_Zbuffer, m_Zbuffer + 2000 * 2000, 1.f);
         }
 
-        glm::mat4 World      = m_Camera.getWorldMatrix();
-        glm::mat4 ModelView  = m_Camera.getViewMatrix();
+        glm::mat4 model      = m_Camera.getWorldMatrix();
+        glm::mat4 view  = m_Camera.getViewMatrix();
         glm::mat4 Projection = m_Camera.getPerspectiveMatrix();
+        glm::mat4 modelInv   =  glm::inverse(model);
 
         shader_struct_a2v a2v;
         a2v._model            = m_Camera.getWorldMatrix();
@@ -155,7 +150,23 @@ public:
         a2v._projection       = m_Camera.getPerspectiveMatrix();
 
         m_DrawData._shader    = Create();
-        m_DrawData._transform = {World, ModelView, Projection};
+        m_DrawData._transform = {model, view, Projection, modelInv};
+
+        m_DrawData._shader->setTransform(model, view, Projection, modelInv);
+        m_DrawData._shader->setMaterial({
+            &m_Model->_diffuseMap,
+            &m_Model->_normalMap,
+            &m_Model->_specularMap,
+            Color(1.f,1.f,1.f),
+            Color(1.f,1.f,1.f),
+            50
+        });
+        std::dynamic_pointer_cast<BlinnShader>(m_DrawData._shader)->setLightData(light_dir,Color(1.f,0.f,0.f));
+        m_DrawData._model     = m_Model;
+        //m_DrawData._rdBuffer  = new RenderBuffer(m_ViewportWidth, m_ViewportHeight);
+        m_DrawData._image   = m_Image;
+        m_DrawData._zBuffer   = m_Zbuffer;
+
         vertexProcessing(&m_DrawData, &a2v);
 
         bool isCube = false;
@@ -216,8 +227,8 @@ public:
 
                 for (int32_t j = 0; j < 3; j++) {
                     glm::vec3 vert     = vertices[i + j];
-                    world_coords[j]    = World * glm::vec4(vert, 1.f);
-                    glm::vec4 eye_pos  = world_coords[j] * ModelView;
+                    world_coords[j]    = model * glm::vec4(vert, 1.f);
+                    glm::vec4 eye_pos  = world_coords[j] * view;
                     glm::vec4 clip_pos = eye_pos * Projection;
 
                     glm::vec3 ndc_pos =
@@ -231,9 +242,10 @@ public:
         } else {
 
         }
-
+        //m_Image->setData(m_DrawData._rdBuffer->_colorBuffer);
         m_Image->flip_vertically(); // i want to have the origin at the left bottom corner of the image
         m_Image->write_tga_file("output.tga");
+
     }
 
 private:

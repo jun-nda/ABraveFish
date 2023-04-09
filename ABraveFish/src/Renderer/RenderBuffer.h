@@ -19,7 +19,7 @@ public:
     void clearColor(Color color);
     void clearDepth(float depth);
 
-private:
+public:
     int32_t        _width, _height;
     unsigned char* _colorBuffer;
     float*         _depthBuffer;

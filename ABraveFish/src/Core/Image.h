@@ -97,6 +97,8 @@ public:
     int32_t        get_bytespp();
     unsigned char* buffer();
     void           clear();
+
+    void setData(unsigned char* bufferdata);
 };
 
 } // namespace ABraveFish
