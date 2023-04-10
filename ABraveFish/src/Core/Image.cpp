@@ -359,5 +359,8 @@ bool TGAImage::scale(int32_t w, int32_t h) {
     return true;
 }
 
-void TGAImage::setData(unsigned char* bufferdata) { data = bufferdata; }
+void TGAImage::setData(unsigned char* bufferdata) { 
+    memcpy(data, bufferdata, width * height * bytespp);
+    
+}
 } // namespace ABraveFish

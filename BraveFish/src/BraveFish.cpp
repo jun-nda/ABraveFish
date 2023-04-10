@@ -31,7 +31,7 @@ using namespace ABraveFish;
 
 const int depth = 255;
 
-glm::vec3 light_dir(0, 0, -1); // define light_dir
+glm::vec3 light_dir(2, 2, 2); // define light_dir
 
 void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v) {
     shader_struct_v2f v2fs[3];
@@ -147,10 +147,10 @@ public:
         m_DrawData._shader->setTransform(model, view, Projection, modelInv);
         m_DrawData._shader->setMaterial({&m_Model->_diffuseMap, &m_Model->_normalMap, &m_Model->_specularMap,
                                          Color(1.f, 1.f, 1.f), Color(1.f, 1.f, 1.f), 50});
-        std::dynamic_pointer_cast<BlinnShader>(m_DrawData._shader)->setLightData(light_dir, Color(1.f, 0.f, 0.f));
+        std::dynamic_pointer_cast<BlinnShader>(m_DrawData._shader)->setLightData(light_dir, Color(1.f, 1.f, 1.f));
         m_DrawData._model = m_Model;
-        // m_DrawData._rdBuffer  = new RenderBuffer(m_ViewportWidth, m_ViewportHeight);
-        m_DrawData._image   = m_Image;
+        m_DrawData._rdBuffer  = new RenderBuffer(m_ViewportWidth, m_ViewportHeight);
+        //m_DrawData._image   = m_Image;
         m_DrawData._zBuffer = m_Zbuffer;
 
         vertexProcessing(&m_DrawData, &a2v);
@@ -227,7 +227,9 @@ public:
             }
         } else {
         }
-        // m_Image->setData(m_DrawData._rdBuffer->_colorBuffer);
+
+        m_Image->setData(m_DrawData._rdBuffer->_colorBuffer);
+        delete m_DrawData._rdBuffer;
         m_Image->flip_vertically(); // i want to have the origin at the left bottom corner of the image
         m_Image->write_tga_file("output.tga");
     }

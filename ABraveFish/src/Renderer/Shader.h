@@ -21,8 +21,7 @@ struct Transform {
         : _model(model)
         , _view(view)
         , _projection(projection)
-        , _modelInv(modelInv)
-    {}
+        , _modelInv(modelInv) {}
 };
 
 struct Material {
@@ -59,7 +58,7 @@ constexpr static ShaderType shaderType = ShaderType::BlinnShader;
 
 class Shader {
 public:
-    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v)                = 0;
+    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v)                 = 0;
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) = 0;
 
     void setTransform(glm::mat4 model, glm::mat4 view, glm::mat4 projection, glm::mat4 modelInv);
@@ -72,13 +71,15 @@ public:
 protected:
     Transform _transform;
     Material  _material;
+
+    // TODO: ”√ªß≈‰÷√
 };
 
 struct DrawData {
     Model*        _model;
     float*        _zBuffer;
-    //RenderBuffer* _rdBuffer;
-    TGAImage* _image;
+    RenderBuffer* _rdBuffer;
+    // TGAImage* _image;
 
     Ref<Shader> _shader;
     Transform   _transform;
@@ -94,7 +95,7 @@ public:
 
     Color diffuseSample(const glm::vec2& uv);
 
-    int isInShadow(glm::vec4 depthPos, float n_dot_l) { return 1; };
+    int32_t isInShadow(glm::vec4 depthPos, float n_dot_l);
 
 private:
     glm::vec3 _lightDir;
@@ -102,6 +103,12 @@ private:
     glm::vec3 _eyePos;
 
     glm::mat4 _lightVP;
+};
+
+class ShadowShader : public Shader {
+public:
+    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
+    virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
 };
 
 static Ref<Shader> Create() {
