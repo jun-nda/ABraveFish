@@ -236,6 +236,8 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs) {
 
     glm::vec3 P(1.f);
 
+    // 未进行裁剪，当一个三角形有顶点在外面的时候，也进行光栅化，但只光栅了屏幕空间范围内的部分
+
     for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
         for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
             glm::vec3 bc_screen = Barycentric(screen_coords, glm::vec2(P.x, P.y));

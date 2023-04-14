@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "Model.h"
+#include "Util.h"
 
 namespace ABraveFish {
 Model::Model(const char* filename)
@@ -86,16 +87,5 @@ glm::vec3 Model::getNormal(int32_t iface, int32_t nvert) {
 TGAColor Model::diffuseSample(glm::vec2 uv) { return _diffuseMap.get(uv.x, uv.y); }
 TGAColor Model::normalSample(glm::vec2 uv) { return _normalMap.get(uv.x, uv.y); }
 TGAColor Model::specularSample(glm::vec2 uv) { return _specularMap.get(uv.x, uv.y); }
-
-void Model::loadTexture(std::string filename, const char* suffix, TGAImage& img) {
-    std::string texfile(filename);
-    size_t      dot = texfile.find_last_of(".");
-    if (dot != std::string::npos) {
-        texfile = texfile.substr(0, dot) + std::string(suffix);
-        std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed")
-                  << std::endl;
-        img.flip_vertically();
-    }
-}
 
 } // namespace ABraveFish

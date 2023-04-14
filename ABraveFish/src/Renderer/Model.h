@@ -4,6 +4,7 @@
 #include <vector>
 #include "Core/Image.h"
 #include "glm/glm.hpp"
+#include "Shader.h"
 
 namespace ABraveFish {
 class Model {
@@ -17,6 +18,7 @@ public:
     glm::vec2            getUV(int32_t iface, int32_t nvert);
     std::vector<int32_t> getFace(int32_t idx); // 拿到第idx个面的三个顶点数据vert的索引
 
+public:
     TGAColor diffuseSample(glm::vec2 uv);
     TGAColor normalSample(glm::vec2 uv);
     TGAColor specularSample(glm::vec2 uv);
@@ -26,8 +28,6 @@ public:
     TGAImage _diffuseMap;
     TGAImage _normalMap;
     TGAImage _specularMap;
-private:
-    void loadTexture(std::string filename, const char* suffix, TGAImage& img);
 
 private:
     std::vector<glm::vec3>              _verts;

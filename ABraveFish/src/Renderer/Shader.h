@@ -34,6 +34,10 @@ struct Material {
     // float     bump_scale;
 };
 
+struct CubeMap{
+    TGAImage faces[6];
+};
+
 struct shader_struct_a2v {
     glm::vec3 _objPos;
     glm::vec3 _objNormal;
@@ -111,6 +115,12 @@ public:
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
 };
 
+class PBRShader : public Shader {
+public:
+    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
+    virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
+};
+
 static Ref<Shader> Create() {
     switch (shaderType) {
         case ShaderType::None:
@@ -121,5 +131,6 @@ static Ref<Shader> Create() {
 
     return nullptr;
 }
+
 
 } // namespace ABraveFish
