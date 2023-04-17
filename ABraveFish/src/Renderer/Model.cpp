@@ -8,7 +8,7 @@
 #include "Util.h"
 
 namespace ABraveFish {
-Model::Model(const char* filename)
+Model::Model(const char* filename, bool isSkyBox)
     : _verts()
     , _faces()
     , _norms()
@@ -54,9 +54,14 @@ Model::Model(const char* filename)
     }
     std::cerr << "# v# " << _verts.size() << " f# " << _faces.size() << " vt# " << _uv.size() << " vn# "
               << _norms.size() << std::endl;
-    loadTexture(filename, "_diffuse.tga", _diffuseMap);
-    loadTexture(filename, "_nm_tangent.tga", _normalMap);
-    loadTexture(filename, "_spec.tga", _specularMap);
+
+    if (isSkyBox) {
+        loadCubeMap(filename);
+    } else {
+        loadTexture(filename, "_diffuse.tga", _diffuseMap);
+        loadTexture(filename, "_nm_tangent.tga", _normalMap);
+        loadTexture(filename, "_spec.tga", _specularMap);
+    } 
 }
 
 Model::~Model() {}
@@ -87,5 +92,14 @@ glm::vec3 Model::getNormal(int32_t iface, int32_t nvert) {
 TGAColor Model::diffuseSample(glm::vec2 uv) { return _diffuseMap.get(uv.x, uv.y); }
 TGAColor Model::normalSample(glm::vec2 uv) { return _normalMap.get(uv.x, uv.y); }
 TGAColor Model::specularSample(glm::vec2 uv) { return _specularMap.get(uv.x, uv.y); }
+
+void Model::loadCubeMap(const char* filename) {
+    loadTexture(filename, "_right.tga", _enviromentMap.faces[0]);
+    loadTexture(filename, "_left.tga", _enviromentMap.faces[1]);
+    loadTexture(filename, "_top.tga", _enviromentMap.faces[2]);
+    loadTexture(filename, "_bottom.tga", _enviromentMap.faces[3]);
+    loadTexture(filename, "_back.tga", _enviromentMap.faces[4]);
+    loadTexture(filename, "_front.tga", _enviromentMap.faces[5]);
+}
 
 } // namespace ABraveFish

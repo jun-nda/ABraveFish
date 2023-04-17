@@ -31,11 +31,9 @@ struct Material {
     Color     color; // 暂时不知道用来干啥的
     Color     specular;
     float     gloss;
-    // float     bump_scale;
-};
 
-struct CubeMap{
-    TGAImage faces[6];
+    CubeMap* _cubeMap;
+    // float     bump_scale;
 };
 
 struct shader_struct_a2v {
@@ -57,16 +55,18 @@ struct shader_struct_v2f {
     float     _screenDepth;
 };
 
-enum class ShaderType { None = 0, BlinnShader = 1 };
-constexpr static ShaderType shaderType = ShaderType::BlinnShader;
+enum class ShaderType { None = 0, BlinnShader = 1, SkyBoxShader = 2 };
+static ShaderType shaderType = ShaderType::BlinnShader;
 
 class Shader {
 public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v)                 = 0;
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) = 0;
 
-    void setTransform(glm::mat4 model, glm::mat4 view, glm::mat4 projection, glm::mat4 modelInv);
+    void setTransform(const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection,
+                      const glm::mat4& modelInv);
     void setMaterial(const Material& material);
+    void setSkyBox(CubeMap* cubeMap);
 
     glm::vec4 object2ClipPos(const glm::vec3& objPos);
     glm::vec3 object2WorldPos(const glm::vec3& objPos);
@@ -82,7 +82,7 @@ protected:
 struct DrawData {
     Model*        _model;
     float*        _zBuffer;
-    RenderBuffer* _rdBuffer;
+    RenderBuffer* _rdBuffer = nullptr;
     // TGAImage* _image;
 
     Ref<Shader> _shader;
@@ -115,6 +115,16 @@ public:
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
 };
 
+class SkyBoxShader : public Shader {
+public:
+    virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
+    virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
+
+protected:
+    Color   cubemapSampling(const glm::vec3& direction, CubeMap* cubeMap);
+    int32_t calCubeMapUV(const glm::vec3& direction, glm::vec2& uv);
+};
+
 class PBRShader : public Shader {
 public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
@@ -127,10 +137,11 @@ static Ref<Shader> Create() {
             return nullptr;
         case ShaderType::BlinnShader:
             return CreateRef<BlinnShader>();
+        case ShaderType::SkyBoxShader:
+            return CreateRef<SkyBoxShader>();
     }
 
     return nullptr;
 }
-
 
 } // namespace ABraveFish

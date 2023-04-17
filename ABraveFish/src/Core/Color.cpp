@@ -50,10 +50,8 @@ float Color::operator[](const size_t i) const {
 
 Color Color::operator+(const Color& color) const {
     Color ret = *this;
-    for (size_t i = 0; i < 4; i++) {
-        ret[i] = std::min(std::max(0.f, ret[i] + color[i]), MAX_CHANNEL_VALUE);
-    }
-    return ret;
+    return Color(std::min(std::max(0.f, color.r + ret.r), MAX_CHANNEL_VALUE), std::min(std::max(0.f, color.g + ret.g),MAX_CHANNEL_VALUE),
+                 std::min(std::max(0.f, color.b + ret.b),MAX_CHANNEL_VALUE));
 }
 
 Color Color::operator*(float intensity) const {
@@ -67,9 +65,10 @@ Color Color::operator*(float intensity) const {
 
 Color Color::operator*(const Color& color) const {
     Color ret = *this;
-    for (size_t i = 0; i < 4; i++) {
-        ret[i] = ret[i] * color[i];
-    }
-    return ret;
+    //for (size_t i = 0; i < 4; i++) {
+    //    ret[i] = ret[i] * color[i];
+    //}
+    //return ret;
+    return Color(color.r * ret.r, color.g * ret.g, color.b * ret.b);
 }
 } // namespace ABraveFish

@@ -4,12 +4,17 @@
 #include <vector>
 #include "Core/Image.h"
 #include "glm/glm.hpp"
-#include "Shader.h"
 
+#define IS_SKYBOX true
 namespace ABraveFish {
+
+struct CubeMap {
+    TGAImage faces[6];
+};
+
 class Model {
 public:
-    Model(const char* filename);
+    Model(const char* filename, bool isSkyBox = false);
     ~Model();
     int32_t              getVertCount();
     int32_t              getFaceCount();
@@ -28,6 +33,11 @@ public:
     TGAImage _diffuseMap;
     TGAImage _normalMap;
     TGAImage _specularMap;
+
+    CubeMap _enviromentMap;
+
+private:
+    void loadCubeMap(const char* filename);
 
 private:
     std::vector<glm::vec3>              _verts;

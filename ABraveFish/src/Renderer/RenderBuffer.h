@@ -12,11 +12,11 @@ public:
 
     void     setDepth(int x, int y, float depth);
     float    getDepth(int x, int y);
-    void     setColor(int x, int y, Color color);
+    void     setColor(int x, int y, const Color& color);
     Color getColor(int x, int y);
 
     void release();
-    void clearColor(Color color);
+    void clearColor(const Color& color);
     void clearDepth(float depth);
 
 public:

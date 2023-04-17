@@ -1,4 +1,5 @@
 #include "Shader.h"
+#include <iostream>
 
 #define VEC4(pos) glm::vec4(pos, 1.f)
 namespace ABraveFish {
@@ -6,11 +7,20 @@ static float     saturate(float f) { return f < 0 ? 0 : (f > 1 ? 1 : f); }
 static glm::vec3 color2Vec3(Color color) { return glm::vec3(color.r, color.g, color.b); }
 
 static Color AMBIENT = Color(54.f / 255, 58.f / 255, 66.f / 255);
-void         Shader::setTransform(glm::mat4 model, glm::mat4 view, glm::mat4 projection, glm::mat4 modelInv) {
+void         Shader::setTransform(const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection,
+                          const glm::mat4& modelInv) {
     _transform = Transform(model, view, projection, modelInv);
 }
 
 void Shader::setMaterial(const Material& material) { _material = material; }
+void Shader::setSkyBox( CubeMap* cubeMap ) { 
+    _material._diffuseMap = nullptr;
+    _material._normalMap  = nullptr;
+    _material._specularMap = nullptr;
+
+    _material._cubeMap     = cubeMap;
+}
+
 
 glm::vec4 Shader::object2ClipPos(const glm::vec3& objPos) {
     return VEC4(objPos) * _transform._model * _transform._view * _transform._projection;
@@ -42,9 +52,8 @@ bool BlinnShader::fragment(shader_struct_v2f* v2f, Color& color) {
     Color     spcular =
         _ligthColor * _material.specular * std::pow(saturate(glm::dot(worldNormalDir, halfDir)), _material.gloss);
 
-    glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
-    int       shadow    = isInShadow(depth_pos, n_dot_l);
-    color               = ambient + (diffuse + spcular) * shadow;
+    //glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
+    color               = ambient + (diffuse + spcular);
     // color               = Color(255, 255, 255);
     return false;
 }
@@ -76,6 +85,88 @@ int32_t BlinnShader::isInShadow( glm::vec4 depthPos, float n_dot_l ) {
     //}
 
     return 1;
+}
+
+shader_struct_v2f SkyBoxShader::vertex(shader_struct_a2v* a2v) {
+    shader_struct_v2f v2f;
+    v2f._clipPos     = object2ClipPos(a2v->_objPos);
+    //std::cout << v2f._clipPos.x << " " << v2f._clipPos.y << " " << v2f._clipPos.z << std::endl;
+    v2f._worldPos    = a2v->_objPos;
+    return v2f;
+}
+
+bool SkyBoxShader::fragment(shader_struct_v2f* v2f, Color& color) {
+
+    color = cubemapSampling(v2f->_worldPos, _material._cubeMap);
+    //color = Color(1.f, 0.f, 0.f, 1.f);
+
+    return false;
+}
+
+Color SkyBoxShader::cubemapSampling(const glm::vec3& direction, CubeMap* cubeMap) {
+    glm::vec2 uv;
+    Color color;
+    int32_t  face_index = calCubeMapUV(direction, uv);
+    TGAImage& map        = _material._cubeMap->faces[face_index];
+    color                = map.get(uv.x * map.get_width(), uv.y * map.get_height());
+
+    return color;
+}
+
+// core cubemap algorithm
+int32_t SkyBoxShader::calCubeMapUV(const glm::vec3& direction, glm::vec2& uv) {
+    int   face_index = -1;
+    float ma = 0, sc = 0, tc = 0;
+    float abs_x = fabs(direction[0]), abs_y = fabs(direction[1]), abs_z = fabs(direction[2]);
+
+    if (abs_x > abs_y && abs_x > abs_z) /* major axis -> x */
+    {
+        ma = abs_x;
+        if (direction.x > 0) /* positive x */
+        {
+            face_index = 0;
+            sc         = +direction.z;
+            tc         = +direction.y;
+        } else /* negative x */
+        {
+            face_index = 1;
+            sc         = -direction.z;
+            tc         = +direction.y;
+        }
+    } else if (abs_y > abs_z) /* major axis -> y */
+    {
+        ma = abs_y;
+        if (direction.y > 0) /* positive y */
+        {
+            face_index = 2;
+            sc         = +direction.x;
+            tc         = +direction.z;
+        } else /* negative y */
+        {
+            face_index = 3;
+            sc         = +direction.x;
+            tc         = -direction.z;
+        }
+    } else /* major axis -> z */
+    {
+        ma = abs_z;
+        if (direction.z > 0) /* positive z */
+        {
+            face_index = 4;
+            sc         = -direction.x;
+            tc         = +direction.y;
+        } else /* negative z */
+        {
+            face_index = 5;
+            sc         = +direction.x;
+            tc         = +direction.y;
+        }
+    }
+
+    uv[0] = (sc / ma + 1.0f) / 2.0f;
+    uv[1] = (tc / ma + 1.0f) / 2.0f;
+
+    return face_index;
 }
 
 } // namespace ABraveFish

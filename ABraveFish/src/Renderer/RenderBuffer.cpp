@@ -35,7 +35,7 @@ float RenderBuffer::getDepth(int x, int y) {
     return _depthBuffer[index];
 }
 
-void RenderBuffer::setColor(int x, int y, Color Color) {
+void RenderBuffer::setColor(int x, int y, const Color& Color) {
     int index               = (y * _width + x) * 4;
     _colorBuffer[index + 0] = Color.r * 255;
     _colorBuffer[index + 1] = Color.g * 255;
@@ -53,7 +53,7 @@ void RenderBuffer::release() {
     //free(this);
 }
 
-void RenderBuffer::clearColor(Color Color) {
+void RenderBuffer::clearColor(const Color& Color) {
     int num_pixels = this->_width * this->_height;
     int i;
     for (i = 0; i < num_pixels; i++) {

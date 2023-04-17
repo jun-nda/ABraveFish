@@ -39,7 +39,7 @@ void Application::Init() {
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // Enable Docking
+    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport / Platform Windows
                                                         // io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoTaskBarIcons;
     // io.ConfigFlags |= ImGuiConfigFlags_ViewportsNoMerge;
@@ -154,7 +154,8 @@ void Application::Run() {
 
         float time      = GetTime();
         m_FrameTime     = time - m_LastFrameTime;
-        m_TimeStep      = glm::min<float>(m_FrameTime, 0.0333f);
+        m_TimeStep      = m_FrameTime;
+        std::cout << (int32_t)(1 / m_FrameTime) << std::endl;
         m_LastFrameTime = time;
     }
 }

@@ -1,7 +1,6 @@
 #include "camera.h"
 
 #include "Core/Application.h"
-#include "Core/Macros.h"
 #include "Core/Window.h"
 
 #include "RenderDevice.h"
@@ -9,105 +8,177 @@
 #include "GLFW/glfw3.h"
 #include "glm/gtc/matrix_transform.hpp"
 
+#include <iostream>
+
 namespace ABraveFish {
 
-const glm::vec3 UP(0.f, 1.f, 0.f);
+glm::vec2 orbit_pos;
+glm::vec2 orbit_delta;
+glm::vec2 fv_delta;
+glm::vec2 fv_pos;
 
-const float NEAR = 0.1f;
-const float FAR  = 1000.f;
+// for mouse wheel
+float wheel_delta;
 
-float zoom  = 60.f;
+void onMouse(GLFWwindow* window, int button, int action, int mods);
+void onMotion(GLFWwindow* window, double x, double y);
+void onScroll(GLFWwindow* window, double x, double y);
 
-/* Arcbal */
-int32_t last_mx = 0, last_my = 0, cur_mx = 0, cur_my = 0;
-int32_t arcball_on = false;
-
-glm::vec3 get_arcball_vector(int x, int y, int width, int height);
-void      onMouse(GLFWwindow* window, int button, int action, int mods);
-void      onMotion(GLFWwindow* window, double x, double y);
-void      onScroll(GLFWwindow* window, double x, double y);
-
-    /*
- * https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Arcball
- */
-
-Camera::Camera() { initMouseCallBack(); }
-
-void Camera::update(float ts) {
-    /* onIdle() */
-    if (cur_mx != last_mx || cur_my != last_my) {
-        glm::vec3 va    = get_arcball_vector(last_mx, last_my, m_Width, m_Height);
-        glm::vec3 vb    = get_arcball_vector(cur_mx, cur_my, m_Width, m_Height);
-
-        float     angle = acos(std::min(1.0f, glm::dot(va, vb))) * 0.2;
-        glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
-        glm::mat3 camera2object        = glm::inverse(glm::mat3(m_ViewMatrix) * glm::mat3(m_WorldMatrix));
-        glm::vec3 axis_in_object_coord = camera2object * axis_in_camera_coord;
-
-        m_WorldMatrix = glm::rotate(m_WorldMatrix, glm::degrees(-angle), axis_in_object_coord);
-        last_mx       = cur_mx;
-        last_my       = cur_my;
-    }
-}
-
-void Camera::updateTransformMatrix(int32_t width, int32_t height) {
-    m_Width  = width;
-    m_Height = height;
-
-    m_ViewMatrix        = lookat(m_Pos, m_Target, UP);
-    m_PerspectiveMatrix = perspective(TO_RADIANS(zoom), m_Width / m_Height, NEAR, FAR);
-}
-
-void Camera::initMouseCallBack() {
+Camera::Camera(glm::vec3 e, glm::vec3 t, glm::vec3 up)
+    : eye(e)
+    , target(t)
+    , up(up) {
     GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
+
     glfwSetMouseButtonCallback(window, onMouse);
     glfwSetCursorPosCallback(window, onMotion);
     glfwSetScrollCallback(window, onScroll);
 }
 
-/**
- * Get a normalized vector from the center of the virtual ball O to a
- * point P on the virtual ball surface, such that P is aligned on
- * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
- * sphere, return the nearest point on the virtual ball surface.
- */
-glm::vec3 get_arcball_vector(int x, int y, int width, int height) {
-    // viewport reverse
-    glm::vec3 P      = glm::vec3(1.0 * x / width * 2 - 1.0, 1.0 * y / height * 2 - 1.0, 0);
-    P.y              = -P.y;
-    float OP_squared = P.x * P.x + P.y * P.y;
-    if (OP_squared <= 1 * 1)
-        P.z = sqrt(1 * 1 - OP_squared); // Pythagoras
-    else
-        P = glm::normalize(P); // nearest point
-    return P;
+Camera::~Camera() {}
+
+void updata_camera_pos(Camera& camera) {
+    GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
+
+    glm::vec3 from_target = camera.eye - camera.target; // vector point from target to camera's position
+    float     radius      = glm::length(from_target);
+
+    float phi = (float)atan2(from_target[0],
+                             from_target[2]); // azimuth angle(·½Î»½Ç), angle between from_target and z-axis£¬[-pi, pi]
+    float theta =
+        (float)acos(from_target[1] / radius); // zenith angle(Ìì¶¥½Ç), angle between from_target and y-axis, [0, pi]
+
+    int32_t width, height;
+    glfwGetWindowSize(window, &width, &height);
+    float x_delta = orbit_delta[0] / width;
+    float y_delta = orbit_delta[1] / height;
+
+    // for mouse wheel
+    radius *= (float)pow(0.95, wheel_delta);
+
+    float factor = 1.5 * PI;
+    // for mouse left button
+    phi += x_delta * factor;
+    theta += y_delta * factor;
+    if (theta > PI)
+        theta = PI - EPSILON * 100;
+    if (theta < 0)
+        theta = EPSILON * 100;
+
+    camera.eye[0] = camera.target[0] + radius * sin(phi) * sin(theta);
+    camera.eye[1] = camera.target[1] + radius * cos(theta);
+    camera.eye[2] = camera.target[2] + radius * sin(theta) * cos(phi);
+
+    // for mouse right button
+    factor         = radius * (float)tan(60.0 / 360 * PI) * 2.2;
+    x_delta        = fv_delta[0] / width;
+    y_delta        = fv_delta[1] / height;
+    glm::vec3 left = x_delta * factor * camera.x;
+    glm::vec3 up   = y_delta * factor * camera.y;
+
+    camera.eye += (left - up);
+    camera.target += (left - up);
 }
+
+void handle_mouse_events(Camera& camera) {
+    GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
+
+    if (glfwGetMouseButton(window, (int)GLFW_MOUSE_BUTTON_LEFT)) {
+        double x, y;
+        glfwGetCursorPos(window, &x, &y);
+        glm::vec2 cur_pos(x, y);
+        std::cout << orbit_pos.x <<  " " << orbit_pos.y << std::endl;
+        orbit_delta = orbit_pos - cur_pos;
+        orbit_pos   = cur_pos;
+    }
+
+    if (glfwGetMouseButton(window, (int)GLFW_MOUSE_BUTTON_RIGHT)) {
+        double x, y;
+        glfwGetCursorPos(window, &x, &y);
+        glm::vec2 cur_pos(x, y);
+
+        fv_delta = fv_pos - cur_pos;
+        fv_pos   = cur_pos;
+    }
+
+    updata_camera_pos(camera);
+}
+
+void handle_key_events(Camera& camera) {
+    GLFWwindow* window   = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
+    float       distance = glm::length(camera.target - camera.eye);
+    int32_t     width, height;
+    glfwGetWindowSize(window, &width, &height);
+    glm::vec2 windowSize(width, height);
+    if (isKeyDown(KeyCode::W)) {
+        camera.eye += -10.0f / (camera.z * distance * (float)width);
+    }
+    if (isKeyDown(KeyCode::S)) {
+        camera.eye += 0.05f * camera.z;
+    }
+    if (isKeyDown(KeyCode::Up) || isKeyDown(KeyCode::Q)) {
+        camera.eye += 0.05f * camera.y;
+        camera.target += 0.05f * camera.y;
+    }
+    if (isKeyDown(KeyCode::Down) || isKeyDown(KeyCode::E)) {
+        camera.eye += -0.05f * camera.y;
+        camera.target += -0.05f * camera.y;
+    }
+    if (isKeyDown(KeyCode::Left) || isKeyDown(KeyCode::A)) {
+        camera.eye += -0.05f * camera.x;
+        camera.target += -0.05f * camera.x;
+    }
+    if (isKeyDown(KeyCode::Right) || isKeyDown(KeyCode::D)) {
+        camera.eye += 0.05f * camera.x;
+        camera.target += 0.05f * camera.x;
+    }
+}
+
+void handle_events(Camera& camera) {
+    // calculate camera axis
+    camera.z = glm::normalize(camera.eye - camera.target);
+    camera.x = glm::normalize(cross(camera.up, camera.z));
+    camera.y = glm::normalize(cross(camera.z, camera.x));
+
+    // mouse and keyboard events
+    handle_mouse_events(camera);
+    handle_key_events(camera);
+}
+
+void reset_camera() {
+    // reset mouse information
+    wheel_delta = 0;
+    orbit_delta = glm::vec2(0, 0);
+    fv_delta    = glm::vec2(0, 0);
+}
+
+bool isKeyDown(KeyCode keycode) {
+    GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
+    int         state  = glfwGetKey(window, (int)keycode);
+    return state == GLFW_PRESS || state == GLFW_REPEAT;
+}
+
 
 void onMouse(GLFWwindow* window, int button, int action, int mods) {
     double x, y;
     glfwGetCursorPos(window, &x, &y);
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-        arcball_on = true;
-        last_mx = cur_mx = x;
-        last_my = cur_my = y;
-    } else {
-        arcball_on = false;
-    }
+    orbit_pos = glm::vec2(x, y);
+    fv_pos    = glm::vec2(x, y);
 }
 
 void onMotion(GLFWwindow* window, double x, double y) {
-    if (arcball_on) { // if left button is pressed
-        cur_mx = x;
-        cur_my = y;
-    }
+    //if (arcball_on) { // if left button is pressed
+    //    cur_mx = x;
+    //    cur_my = y;
+    //}
 }
 
-void onScroll( GLFWwindow* window, double x, double y ) {
-    zoom -= (float)y;
-    if (zoom < 1.0f)
-        zoom = 1.0f;
-    if (zoom > 89.0f)
-        zoom = 89.0f;
+void onScroll(GLFWwindow* window, double x, double y) {
+    wheel_delta -= (float)y/12.f;
+    //if (wheel_delta < 1.0f)
+    //    wheel_delta = 1.0f;
+    //if (wheel_delta > 89.0f)
+    //    wheel_delta = 89.0f;
 }
 
 } // namespace ABraveFish

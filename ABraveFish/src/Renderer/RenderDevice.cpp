@@ -1,8 +1,8 @@
 #include <iostream>
 
 #include "Core/Image.h"
-#include "Shader.h"
 #include "RenderDevice.h"
+#include "Shader.h"
 
 namespace ABraveFish {
 void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, TGAImage* image, TGAColor color) {
@@ -140,18 +140,12 @@ float interpolateDepth(float* screenDepth, glm::vec3 weights) {
 }
 
 // 重心坐标
-glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
-    glm::vec3 s[2];
-    for (int i = 2; i--;) {
-        s[i][0] = pts[2][i] - pts[0][i];
-        s[i][1] = pts[1][i] - pts[0][i];
-        s[i][2] = pts[0][i] - P[i];
-    }
-    glm::vec3 u = cross(s[0], s[1]);
-    if (std::abs(u[2]) > 1e-2) // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
-        return glm::vec3(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
-    return glm::vec3(-1, 1,
-                     1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
+glm::vec3 Barycentric(glm::vec3* v, float x, float y) {
+    float c1 = (x * (v[1].y - v[2].y) + (v[2].x - v[1].x) * y + v[1].x * v[2].y - v[2].x * v[1].y) /
+               (v[0].x * (v[1].y - v[2].y) + (v[2].x - v[1].x) * v[0].y + v[1].x * v[2].y - v[2].x * v[1].y);
+    float c2 = (x * (v[2].y - v[0].y) + (v[0].x - v[2].x) * y + v[2].x * v[0].y - v[0].x * v[2].y) /
+               (v[1].x * (v[2].y - v[0].y) + (v[0].x - v[2].x) * v[1].y + v[2].x * v[0].y - v[0].x * v[2].y);
+    return glm::vec3(c1, c2, 1 - c1 - c2);
 }
 
 /*
@@ -180,30 +174,29 @@ void interpolate_varyings(shader_struct_v2f* v2f, shader_struct_v2f* ret, int si
     }
 }
 
-void rasterization(DrawData* data, shader_struct_v2f* v2fs) {
-    auto rdBuffer   = data->_rdBuffer;
-    auto zbuffer = data->_zBuffer;
-    auto model   = data->_model;
+void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
+    auto rdBuffer = data->_rdBuffer;
+    auto zbuffer  = data->_zBuffer;
+    auto model    = data->_model;
 
     int32_t width  = rdBuffer->_width;
     int32_t height = rdBuffer->_height;
 
     glm::vec3 ndc_coords[3];
 
-    // TODO: homogeneous division
     for (int32_t i = 0; i < 3; i++) {
         // perspective division and viewport transform
-        auto clipPos  = v2fs[i]._clipPos;
+        auto& clipPos = v2fs[i]._clipPos;
         ndc_coords[i] = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
     }
 
     glm::vec3 screen_coords[3];
-    float     screenDepths[3];
+    glm::vec3 screenDepths;
     glm::vec2 uv[3];
 
     for (int32_t i = 0; i < 3; i++) {
         // perspective division and viewport transform
-        auto      clipPos      = v2fs[i]._clipPos;
+        auto&     clipPos      = v2fs[i]._clipPos;
         glm::vec4 ndcPos       = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
         glm::vec3 screen_coord = viewport_transform(width, height, ndcPos);
         screen_coords[i]       = screen_coord;
@@ -213,8 +206,10 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs) {
     }
 
     // 背面剔除
-    if (isBackFacing(ndc_coords))
-        return;
+    if (!isSkyBox) {
+        if (isBackFacing(ndc_coords))
+            return;
+    }
 
     float recip_w[3];
     /* reciprocals of w */
@@ -240,13 +235,13 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs) {
 
     for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
         for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
-            glm::vec3 bc_screen = Barycentric(screen_coords, glm::vec2(P.x, P.y));
+            glm::vec3 bc_screen = Barycentric(screen_coords, P.x, P.y);
             if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
                 continue;
             int32_t idx = P.x + P.y * width;
 
             // 深度插值
-            float frag_depth = interpolateDepth(screenDepths, bc_screen);
+            float frag_depth = glm::dot(screenDepths, bc_screen);
 
             if (zbuffer[idx] < frag_depth)
                 continue;
@@ -256,59 +251,12 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs) {
             interpolate_varyings(v2fs, &interpolate_v2f, sizeof(shader_struct_v2f), bc_screen, recip_w);
 
             glm::vec2 uvP = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
-            Color  color;
+            Color     color;
             bool      discard = data->_shader->fragment(&interpolate_v2f, color);
 
             if (!discard) {
                 rdBuffer->setColor(P.x, P.y, TGAColor(color.r * 255.f, color.g * 255.f, color.b * 255.f));
                 zbuffer[idx] = frag_depth;
-            }
-        }
-    }
-}
-
-// for cube
-glm::vec3 Barycentric(std::vector<glm::vec3> pts, glm::vec2 P) {
-    glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
-                             glm::vec3({pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - P.y}));
-    // 面积为0的退化三角形？
-    if (std::abs(u.z) < 1)
-        return glm::vec3({-1, 1, 1});
-    return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
-}
-// for cube
-void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor color) {
-    int32_t width  = image->get_width();
-    int32_t height = image->get_height();
-
-    // Attention: box must be int
-    int32_t bboxmin[2] = {width, height};
-    int32_t bboxmax[2] = {0, 0};
-    int32_t clamp[2]   = {width, height};
-    for (int32_t i = 0; i < 3; i++) {
-        bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)pts[i].x));
-        bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)pts[i].y));
-
-        bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)pts[i].x));
-        bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)pts[i].y));
-    }
-    glm::vec3 P(1.f);
-
-    float depths[3];
-    for (int32_t i = 0; i < 3; ++i) {
-        depths[i] = pts[i].z;
-    }
-    for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
-        for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
-            glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
-            if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
-                continue;
-
-            float   depth = interpolateDepth(depths, bc_screen);
-            int32_t idx   = P.x + P.y * width;
-            if (zbuffer[idx] > depth) {
-                zbuffer[idx] = depth;
-                image->set(P.x, P.y, color);
             }
         }
     }
