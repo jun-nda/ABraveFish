@@ -13,6 +13,7 @@
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
 
 #define GLM_SWIZZLE
+#define MAX_VERTEX 10
 
 namespace ABraveFish {
 

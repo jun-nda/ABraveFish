@@ -36,6 +36,22 @@ struct Material {
     // float     bump_scale;
 };
 
+
+// 齐次裁剪所用到的数据
+struct HomogenousClip {
+    glm::vec3 in_normal[MAX_VERTEX];
+    glm::vec2 in_uv[MAX_VERTEX];
+    glm::vec3 in_worldcoord[MAX_VERTEX];
+    glm::vec4 in_clipcoord[MAX_VERTEX];
+
+    glm::vec3 out_normal[MAX_VERTEX];
+    glm::vec2 out_uv[MAX_VERTEX];
+    glm::vec3 out_worldcoord[MAX_VERTEX];
+    glm::vec4 out_clipcoord[MAX_VERTEX];
+};
+
+typedef enum { W_PLANE, X_RIGHT, X_LEFT, Y_TOP, Y_BOTTOM, Z_NEAR, Z_FAR } ClipPlane;
+
 struct shader_struct_a2v {
     glm::vec3 _objPos;
     glm::vec3 _objNormal;
@@ -44,6 +60,8 @@ struct shader_struct_a2v {
     glm::mat4 _model;
     glm::mat4 _view;
     glm::mat4 _projection;
+
+    int32_t _vertIndex;
 };
 
 struct shader_struct_v2f {
@@ -72,10 +90,12 @@ public:
     glm::vec3 object2WorldPos(const glm::vec3& objPos);
     glm::vec3 object2WorldNormal(const glm::vec3& objNormal);
 
+public:
+    HomogenousClip _homogenousClip;
+
 protected:
     Transform _transform;
     Material  _material;
-
     // TODO: 用户配置
 };
 

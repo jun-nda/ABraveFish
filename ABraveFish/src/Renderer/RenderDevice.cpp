@@ -1,10 +1,16 @@
 #include <iostream>
+#include <unordered_map>
 
 #include "Core/Image.h"
 #include "RenderDevice.h"
 #include "Shader.h"
 
 namespace ABraveFish {
+
+// std::unordered_map<int32_t, Color> = {
+//    {1}
+//}
+
 void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, TGAImage* image, TGAColor color) {
     bool steep = false;
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
@@ -174,7 +180,7 @@ void interpolate_varyings(shader_struct_v2f* v2f, shader_struct_v2f* ret, int si
     }
 }
 
-void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
+void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox, int32_t index) {
     auto rdBuffer = data->_rdBuffer;
     auto zbuffer  = data->_zBuffer;
     auto model    = data->_model;
@@ -187,12 +193,13 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
     for (int32_t i = 0; i < 3; i++) {
         // perspective division and viewport transform
         auto& clipPos = v2fs[i]._clipPos;
+        if (clipPos.w < 0.f)
+            return;
         ndc_coords[i] = glm::vec4(clipPos.x / clipPos.w, clipPos.y / clipPos.w, clipPos.z / clipPos.w, 1.0f);
     }
 
     glm::vec3 screen_coords[3];
     glm::vec3 screenDepths;
-    glm::vec2 uv[3];
 
     for (int32_t i = 0; i < 3; i++) {
         // perspective division and viewport transform
@@ -201,9 +208,15 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
         glm::vec3 screen_coord = viewport_transform(width, height, ndcPos);
         screen_coords[i]       = screen_coord;
         screenDepths[i]        = screen_coord.z;
-
-        uv[i] = v2fs[i]._uv;
     }
+
+    // for (int32_t i = 0; i < 3; i++) {
+    //    // perspective division and viewport transform
+    //    if (screen_coords[i].x < 0.f || screen_coords[i].y < 0.f || screen_coords[i].x > width ||
+    //        screen_coords[i].y > height) {
+    //        return;
+    //    }
+    //}
 
     // 背面剔除
     if (!isSkyBox) {
@@ -235,7 +248,7 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
 
     for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
         for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
-            glm::vec3 bc_screen = Barycentric(screen_coords, P.x, P.y);
+            glm::vec3 bc_screen = Barycentric(screen_coords, P.x + 0.5f, P.y + 0.5f);
             if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
                 continue;
             int32_t idx = P.x + P.y * width;
@@ -250,13 +263,206 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
             shader_struct_v2f interpolate_v2f;
             interpolate_varyings(v2fs, &interpolate_v2f, sizeof(shader_struct_v2f), bc_screen, recip_w);
 
-            glm::vec2 uvP = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
-            Color     color;
-            bool      discard = data->_shader->fragment(&interpolate_v2f, color);
+            Color color;
+            bool  discard = data->_shader->fragment(&interpolate_v2f, color);
 
             if (!discard) {
                 rdBuffer->setColor(P.x, P.y, TGAColor(color.r * 255.f, color.g * 255.f, color.b * 255.f));
                 zbuffer[idx] = frag_depth;
+            }
+        }
+    }
+}
+
+void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v, bool isSkyBox) {
+    shader_struct_v2f v2fs[3];
+
+    auto& model  = drawData->_model;
+    auto& shader = drawData->_shader;
+
+    for (int32_t i = 0; i < model->getFaceCount(); i++) {
+        std::vector<int32_t> face = model->getFace(i);
+        for (int32_t j = 0; j < 3; j++) {
+            a2v->_objPos = model->getVert(face[j]);
+
+            a2v->_objNormal = model->getNormal(i, j);
+            a2v->_uv        = model->getUV(i, j);
+
+            // for homogenous clip
+            a2v->_vertIndex = j;
+            // vertex shading
+            v2fs[j] = shader->vertex(a2v);
+        }
+
+        // homogenous cliping
+        int32_t num_vertex = homoClipping(shader->_homogenousClip);
+
+        // triangle assembly and reaterize
+        for (int i = 0; i < num_vertex - 2; i++) {
+            int32_t indexArray[3];
+            indexArray[0] = 0;
+            indexArray[1] = i + 1;
+            indexArray[2] = i + 2;
+            // transform data to real vertex attri
+            transformAttri(v2fs, shader->_homogenousClip, indexArray);
+            rasterization(drawData, v2fs, isSkyBox, i);
+        }
+    }
+}
+
+void transformAttri(shader_struct_v2f* v2fs, HomogenousClip& clipData, int32_t* indexArray) { 
+    for (int i = 0; i < 3; i++) {
+        v2fs[i]._clipPos = clipData.out_clipcoord[indexArray[i]];
+        v2fs[i]._worldPos = clipData.out_worldcoord[indexArray[i]];
+        v2fs[i]._uv = clipData.out_uv[indexArray[i]];
+        v2fs[i]._worldNormal = clipData.out_normal[indexArray[i]];
+    }
+}
+
+
+int32_t homoClipping(HomogenousClip& clipData) {
+    int32_t num_vertex = 3;
+    num_vertex         = clipWithPlane(W_PLANE, num_vertex, clipData);
+    num_vertex         = clipWithPlane(X_RIGHT, num_vertex, clipData);
+    num_vertex         = clipWithPlane(X_LEFT, num_vertex, clipData);
+    num_vertex         = clipWithPlane(Y_TOP, num_vertex, clipData);
+    num_vertex         = clipWithPlane(Y_BOTTOM, num_vertex, clipData);
+    num_vertex         = clipWithPlane(Z_NEAR, num_vertex, clipData);
+    num_vertex         = clipWithPlane(Z_FAR, num_vertex, clipData);
+    return num_vertex;
+}
+int32_t clipWithPlane(ClipPlane plane, int32_t numVertex, HomogenousClip& clipData) {
+    int out_vert_num = 0;
+    int previous_index, current_index;
+    int is_odd = (plane + 1) % 2;
+
+    // set the right in and out datas
+    glm::vec4* in_clipcoord   = is_odd ? clipData.in_clipcoord : clipData.out_clipcoord;
+    glm::vec3* in_worldcoord  = is_odd ? clipData.in_worldcoord : clipData.out_worldcoord;
+    glm::vec3* in_normal      = is_odd ? clipData.in_normal : clipData.out_normal;
+    glm::vec2* in_uv          = is_odd ? clipData.in_uv : clipData.out_uv;
+    glm::vec4* out_clipcoord  = is_odd ? clipData.out_clipcoord : clipData.in_clipcoord;
+    glm::vec3* out_worldcoord = is_odd ? clipData.out_worldcoord : clipData.in_worldcoord;
+    glm::vec3* out_normal     = is_odd ? clipData.out_normal : clipData.in_normal;
+    glm::vec2* out_uv         = is_odd ? clipData.out_uv : clipData.in_uv;
+
+    // tranverse all the edges from first vertex
+    for (int i = 0; i < numVertex; i++) {
+        current_index        = i;
+        previous_index       = (i - 1 + numVertex) % numVertex;
+        glm::vec4 cur_vertex = in_clipcoord[current_index];
+        glm::vec4 pre_vertex = in_clipcoord[previous_index];
+
+        int is_cur_inside = isInsidePlane(plane, cur_vertex);
+        int is_pre_inside = isInsidePlane(plane, pre_vertex);
+        if (is_cur_inside != is_pre_inside) {
+            float ratio = getIntersectRatio(pre_vertex, cur_vertex, plane);
+
+            out_clipcoord[out_vert_num]  = glm::mix(pre_vertex, cur_vertex, ratio);
+            out_worldcoord[out_vert_num] = glm::mix(in_worldcoord[previous_index], in_worldcoord[current_index], ratio);
+            out_normal[out_vert_num]     = glm::mix(in_normal[previous_index], in_normal[current_index], ratio);
+            out_uv[out_vert_num]         = glm::mix(in_uv[previous_index], in_uv[current_index], ratio);
+
+            out_vert_num++;
+        }
+
+        if (is_cur_inside) {
+            out_clipcoord[out_vert_num]  = cur_vertex;
+            out_worldcoord[out_vert_num] = in_worldcoord[current_index];
+            out_normal[out_vert_num]     = in_normal[current_index];
+            out_uv[out_vert_num]         = in_uv[current_index];
+
+            out_vert_num++;
+        }
+    }
+
+    return out_vert_num;
+}
+
+bool isInsidePlane(ClipPlane plane, glm::vec4& vertex) {
+    switch (plane) {
+        case W_PLANE:
+            return vertex.w >= EPSILON;
+        case X_RIGHT:
+            return vertex.x <= vertex.w;
+        case X_LEFT:
+            return vertex.x >= -vertex.w;
+        case Y_TOP:
+            return vertex.y <= vertex.w;
+        case Y_BOTTOM:
+            return vertex.y >= -vertex.w;
+        case Z_NEAR:
+            return vertex.z <= vertex.w;
+        case Z_FAR:
+            return vertex.z >= -vertex.w;
+        default:
+            return 0;
+    }
+}
+float getIntersectRatio(glm::vec4& preVertex, glm::vec4& curVertex, ClipPlane plane) {
+    switch (plane) {
+        case W_PLANE:
+            return (preVertex.w + EPSILON) / (preVertex.w - curVertex.w);
+        case X_RIGHT:
+            return (preVertex.w - preVertex.x) / ((preVertex.w - preVertex.x) - (curVertex.w - curVertex.x));
+        case X_LEFT:
+            return (preVertex.w + preVertex.x) / ((preVertex.w + preVertex.x) - (curVertex.w + curVertex.x));
+        case Y_TOP:
+            return (preVertex.w - preVertex.y) / ((preVertex.w - preVertex.y) - (curVertex.w - curVertex.y));
+        case Y_BOTTOM:
+            return (preVertex.w + preVertex.y) / ((preVertex.w + preVertex.y) - (curVertex.w + curVertex.y));
+        case Z_NEAR:
+            return (preVertex.w - preVertex.z) / ((preVertex.w - preVertex.z) - (curVertex.w - curVertex.z));
+        case Z_FAR:
+            return (preVertex.w + preVertex.z) / ((preVertex.w + preVertex.z) - (curVertex.w + curVertex.z));
+        default:
+            return 0;
+    }
+}
+
+// for cube
+glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
+    glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
+                             glm::vec3({pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - P.y}));
+    // 面积为0的退化三角形？
+    if (std::abs(u.z) < 1)
+        return glm::vec3({-1, 1, 1});
+    return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
+}
+
+// for cube
+void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor color) {
+    int32_t width  = image->get_width();
+    int32_t height = image->get_height();
+
+    // Attention: box must be int
+    int32_t bboxmin[2] = {width, height};
+    int32_t bboxmax[2] = {0, 0};
+    int32_t clamp[2]   = {width, height};
+    for (int32_t i = 0; i < 3; i++) {
+        bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)pts[i].x));
+        bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)pts[i].y));
+
+        bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)pts[i].x));
+        bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)pts[i].y));
+    }
+    glm::vec3 P(1.f);
+
+    float depths[3];
+    for (int32_t i = 0; i < 3; ++i) {
+        depths[i] = pts[i].z;
+    }
+    for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
+        for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
+            glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
+            if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
+                continue;
+
+            float   depth = interpolateDepth(depths, bc_screen);
+            int32_t idx   = P.x + P.y * width;
+            if (zbuffer[idx] > depth) {
+                zbuffer[idx] = depth;
+                image->set(P.x, P.y, color);
             }
         }
     }

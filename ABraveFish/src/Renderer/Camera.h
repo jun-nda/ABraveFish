@@ -150,12 +150,14 @@ public:
     glm::vec3  y;
     glm::vec3  z;
 
+    float width = 1600.f, height = 900.f;
 };
 
 // handle event
 void updata_camera_pos(Camera& camera);
 void handle_events(Camera& camera);
 void reset_camera();
+void update_viewSize(Camera& camera, float width, float height);
 
 bool isKeyDown(KeyCode keycode);
 

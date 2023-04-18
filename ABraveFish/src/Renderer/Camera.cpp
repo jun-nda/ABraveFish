@@ -48,10 +48,9 @@ void updata_camera_pos(Camera& camera) {
     float theta =
         (float)acos(from_target[1] / radius); // zenith angle(Ìì¶¥½Ç), angle between from_target and y-axis, [0, pi]
 
-    int32_t width, height;
-    glfwGetWindowSize(window, &width, &height);
-    float x_delta = orbit_delta[0] / width;
-    float y_delta = orbit_delta[1] / height;
+
+    float x_delta = orbit_delta[0] / camera.width;
+    float y_delta = orbit_delta[1] / camera.height;
 
     // for mouse wheel
     radius *= (float)pow(0.95, wheel_delta);
@@ -71,8 +70,8 @@ void updata_camera_pos(Camera& camera) {
 
     // for mouse right button
     factor         = radius * (float)tan(60.0 / 360 * PI) * 2.2;
-    x_delta        = fv_delta[0] / width;
-    y_delta        = fv_delta[1] / height;
+    x_delta        = fv_delta[0] / camera.width;
+    y_delta        = fv_delta[1] / camera.height;
     glm::vec3 left = x_delta * factor * camera.x;
     glm::vec3 up   = y_delta * factor * camera.y;
 
@@ -87,7 +86,7 @@ void handle_mouse_events(Camera& camera) {
         double x, y;
         glfwGetCursorPos(window, &x, &y);
         glm::vec2 cur_pos(x, y);
-        std::cout << orbit_pos.x <<  " " << orbit_pos.y << std::endl;
+        //std::cout << orbit_pos.x <<  " " << orbit_pos.y << std::endl;
         orbit_delta = orbit_pos - cur_pos;
         orbit_pos   = cur_pos;
     }
@@ -107,11 +106,10 @@ void handle_mouse_events(Camera& camera) {
 void handle_key_events(Camera& camera) {
     GLFWwindow* window   = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
     float       distance = glm::length(camera.target - camera.eye);
-    int32_t     width, height;
-    glfwGetWindowSize(window, &width, &height);
-    glm::vec2 windowSize(width, height);
+
+    glm::vec2 windowSize(camera.width, camera.height);
     if (isKeyDown(KeyCode::W)) {
-        camera.eye += -10.0f / (camera.z * distance * (float)width);
+        camera.eye += -10.0f / (camera.z * distance * (float)camera.width);
     }
     if (isKeyDown(KeyCode::S)) {
         camera.eye += 0.05f * camera.z;
@@ -152,6 +150,11 @@ void reset_camera() {
     fv_delta    = glm::vec2(0, 0);
 }
 
+void update_viewSize(Camera& camera, float width, float height) { 
+    camera.width = width;
+    camera.height = height;
+}
+
 bool isKeyDown(KeyCode keycode) {
     GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow()->GetWindowHandler();
     int         state  = glfwGetKey(window, (int)keycode);
@@ -174,7 +177,7 @@ void onMotion(GLFWwindow* window, double x, double y) {
 }
 
 void onScroll(GLFWwindow* window, double x, double y) {
-    wheel_delta -= (float)y/12.f;
+    wheel_delta -= (float)y/6.f;
     //if (wheel_delta < 1.0f)
     //    wheel_delta = 1.0f;
     //if (wheel_delta > 89.0f)

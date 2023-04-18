@@ -13,17 +13,18 @@ void         Shader::setTransform(const glm::mat4& model, const glm::mat4& view,
 }
 
 void Shader::setMaterial(const Material& material) { _material = material; }
-void Shader::setSkyBox( CubeMap* cubeMap ) { 
-    _material._diffuseMap = nullptr;
-    _material._normalMap  = nullptr;
+void Shader::setSkyBox(CubeMap* cubeMap) {
+    _material._diffuseMap  = nullptr;
+    _material._normalMap   = nullptr;
     _material._specularMap = nullptr;
 
-    _material._cubeMap     = cubeMap;
+    _material._cubeMap = cubeMap;
 }
 
-
 glm::vec4 Shader::object2ClipPos(const glm::vec3& objPos) {
-    return VEC4(objPos) * _transform._model * _transform._view * _transform._projection;
+    glm::vec4 temp = VEC4(objPos) * _transform._model * _transform._view;
+    //std::cout << temp.x << " " << temp.y << " " << temp.z << " " << temp.w << std::endl;
+    return temp * _transform._projection;
 }
 
 glm::vec3 Shader::object2WorldPos(const glm::vec3& objPos) { return glm::vec3(VEC4(objPos) * _transform._model); }
@@ -52,8 +53,10 @@ bool BlinnShader::fragment(shader_struct_v2f* v2f, Color& color) {
     Color     spcular =
         _ligthColor * _material.specular * std::pow(saturate(glm::dot(worldNormalDir, halfDir)), _material.gloss);
 
-    //glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
-    color               = ambient + (diffuse + spcular);
+    // glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
+    //color = ambient + (diffuse + spcular);
+    color = diffuse;
+
     // color               = Color(255, 255, 255);
     return false;
 }
@@ -64,8 +67,8 @@ glm::vec3 BlinnShader::worldSpaceViewDir(glm::vec3 worldPos) { return _eyePos - 
 
 Color BlinnShader::diffuseSample(const glm::vec2& uv) { return _material._diffuseMap->get(uv.x, uv.y); }
 
-int32_t BlinnShader::isInShadow( glm::vec4 depthPos, float n_dot_l ) {
-    //if (shader_data->enable_shadow && shader_data->shadow_map) {
+int32_t BlinnShader::isInShadow(glm::vec4 depthPos, float n_dot_l) {
+    // if (shader_data->enable_shadow && shader_data->shadow_map) {
     //    float widht  = shader_data->shadow_map->width;
     //    float height = shader_data->shadow_map->height;
 
@@ -89,15 +92,19 @@ int32_t BlinnShader::isInShadow( glm::vec4 depthPos, float n_dot_l ) {
 
 shader_struct_v2f SkyBoxShader::vertex(shader_struct_a2v* a2v) {
     shader_struct_v2f v2f;
-    v2f._clipPos     = object2ClipPos(a2v->_objPos);
-    //std::cout << v2f._clipPos.x << " " << v2f._clipPos.y << " " << v2f._clipPos.z << std::endl;
-    v2f._worldPos    = a2v->_objPos;
+    v2f._clipPos   = object2ClipPos(a2v->_objPos);
+    // std::cout << v2f._clipPos.x << " " << v2f._clipPos.y << " " << v2f._clipPos.z << std::endl;
+    v2f._worldPos = a2v->_objPos;
+
+    // for homogenous clipping
+    _homogenousClip.in_clipcoord[a2v->_vertIndex] = v2f._clipPos;
+    _homogenousClip.in_worldcoord[a2v->_vertIndex] = v2f._worldPos;
+
     return v2f;
 }
 
 bool SkyBoxShader::fragment(shader_struct_v2f* v2f, Color& color) {
-
-    color = cubemapSampling(v2f->_worldPos, _material._cubeMap);
+     color = cubemapSampling(v2f->_worldPos, _material._cubeMap);
     //color = Color(1.f, 0.f, 0.f, 1.f);
 
     return false;
@@ -105,8 +112,8 @@ bool SkyBoxShader::fragment(shader_struct_v2f* v2f, Color& color) {
 
 Color SkyBoxShader::cubemapSampling(const glm::vec3& direction, CubeMap* cubeMap) {
     glm::vec2 uv;
-    Color color;
-    int32_t  face_index = calCubeMapUV(direction, uv);
+    Color     color;
+    int32_t   face_index = calCubeMapUV(direction, uv);
     TGAImage& map        = _material._cubeMap->faces[face_index];
     color                = map.get(uv.x * map.get_width(), uv.y * map.get_height());
 

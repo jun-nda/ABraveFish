@@ -155,7 +155,7 @@ void Application::Run() {
         float time      = GetTime();
         m_FrameTime     = time - m_LastFrameTime;
         m_TimeStep      = m_FrameTime;
-        std::cout << (int32_t)(1 / m_FrameTime) << std::endl;
+        //std::cout << (int32_t)(1 / m_FrameTime) << std::endl;
         m_LastFrameTime = time;
     }
 }
