@@ -103,10 +103,7 @@ struct DrawData {
     Model*        _model;
     float*        _zBuffer;
     RenderBuffer* _rdBuffer = nullptr;
-    // TGAImage* _image;
-
     Ref<Shader> _shader;
-    Transform   _transform;
 };
 
 class BlinnShader : public Shader {

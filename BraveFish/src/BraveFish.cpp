@@ -31,18 +31,34 @@ const int depth = 255;
 
 glm::vec3 light_dir(2, 2, 2); // define light_dir
 
+void buildQiyanaScene(Model** model,int32_t& modelNum ,int32_t& vertexNum, int32_t& faceNum) {
+    modelNum                    = 3;
+    const char* fileNames[] = {"obj/qiyana/qiyanabody.obj", "obj/qiyana/qiyanaface.obj", "obj/qiyana/qiyanahair.obj"};
+
+    for (int i = 0; i < modelNum; i++) {
+        model[i] = new Model(fileNames[i]);
+        vertexNum += model[i]->getVertCount();
+        faceNum += model[i]->getFaceCount();
+    }
+}
+
+
 class BraveFishLayer : public Layer {
 public:
     BraveFishLayer()
         : m_Image(nullptr) {}
 
     virtual void OnAttach() override {
-        for (int i = 1600 * 900; i--; m_Zbuffer[i] = 1.f)
+        for (int i = appWidth * appHeight; i--; m_Zbuffer[i] = 1.f)
             ;
-        m_Models[0] = new Model("obj/fuhua/fuhuabody.obj");
-        m_Models[1] = new Model("obj/fuhua/fuhuahair.obj");
-        m_Models[2] = new Model("obj/fuhua/fuhuaface.obj");
-        m_Models[3] = new Model("obj/fuhua/fuhuacloak.obj");
+        //m_Models[0] = new Model("obj/fuhua/fuhuabody.obj");
+        //m_Models[1] = new Model("obj/fuhua/fuhuahair.obj");
+        //m_Models[2] = new Model("obj/fuhua/fuhuaface.obj");
+        //m_Models[3] = new Model("obj/fuhua/fuhuacloak.obj");
+        m_Models[0] = new Model("obj/qiyana/qiyanabody.obj");
+        m_Models[1] = new Model("obj/qiyana/qiyanaface.obj");
+        m_Models[2] = new Model("obj/qiyana/qiyanahair.obj");
+        //m_Models[3] = new Model("obj/fuhua/fuhuacloak.obj");
     }
 
     virtual void OnUpdate(float ts) override {
@@ -101,7 +117,7 @@ public:
         }
         if (m_Zbuffer) {
             // std::fill(m_Zbuffer, m_Zbuffer + 2000 * 2000, 1.f);
-            for (int i = 1600 * 900; i--; m_Zbuffer[i] = 1.f)
+            for (int i = appWidth * appHeight; i--; m_Zbuffer[i] = 1.f)
                 ;
         }
 
@@ -124,14 +140,14 @@ public:
             m_DrawData._rdBuffer = new RenderBuffer(m_ViewportWidth, m_ViewportHeight);
         else
             m_DrawData._rdBuffer->clearColor(Color(0, 0.2, 0.3f, 1));
-        for (int32_t i = 0; i < 4; ++i) {
+        for (int32_t i = 0; i < 3; ++i) {
             shaderType            = ShaderType::BlinnShader;
             m_DrawData._shader    = Create();
-            m_DrawData._transform = {m_ModelM, m_View, m_Projection, m_ModelInv};
 
             m_DrawData._shader->setTransform(m_ModelM, m_View, m_Projection, m_ModelInv);
             m_DrawData._shader->setMaterial({&m_Models[i]->_diffuseMap, &m_Models[i]->_normalMap,
-                                             &m_Models[i]->_specularMap, Color(0.8f, 0.8f, 0.8f), Color(1.f, 1.f, 1.f),
+                                             &m_Models[i]->_specularMap, Color(0.6f, 0.6f, 0.6f),
+                                             Color(0.6f, 0.6f, 0.6f),
                                              50});
             std::dynamic_pointer_cast<BlinnShader>(m_DrawData._shader)->setLightData(light_dir, Color(1.f, 1.f, 1.f));
             m_DrawData._model = m_Models[i];
@@ -156,79 +172,6 @@ public:
 
         //vertexProcessing(&m_DrawData, &a2v, IS_SKYBOX);
 
-        bool isCube = false;
-        if (isCube) {
-            glm::vec3 vertices[] = {
-                // Back face
-                {-0.5f, -0.5f, -0.5f}, // Bottom-left
-                {0.5f, 0.5f, -0.5f},   // top-right
-                {0.5f, -0.5f, -0.5f},  // bottom-right
-                {0.5f, 0.5f, -0.5f},   // top-right
-                {-0.5f, -0.5f, -0.5f}, // bottom-left
-                {-0.5f, 0.5f, -0.5f},  // top-left
-
-                // Front face
-                {-0.5f, -0.5f, 0.5f}, // bottom-left
-                {0.5f, -0.5f, 0.5f},  // bottom-right
-                {0.5f, 0.5f, 0.5f},   // top-right
-                {0.5f, 0.5f, 0.5f},   // top-right
-                {-0.5f, 0.5f, 0.5f},  // top-left
-                {-0.5f, -0.5f, 0.5f}, // bottom-left
-
-                // Left face
-                {-0.5f, 0.5f, 0.5f},   // top-right
-                {-0.5f, 0.5f, -0.5f},  // top-left
-                {-0.5f, -0.5f, -0.5f}, // bottom-left
-                {-0.5f, -0.5f, -0.5f}, // bottom-left
-                {-0.5f, -0.5f, 0.5f},  // bottom-right
-                {-0.5f, 0.5f, 0.5f},   // top-right
-
-                // Right face
-                {0.5f, 0.5f, 0.5f},   // top-left
-                {0.5f, -0.5f, -0.5f}, // bottom-right
-                {0.5f, 0.5f, -0.5f},  // top-right
-                {0.5f, -0.5f, -0.5f}, // bottom-right
-                {0.5f, 0.5f, 0.5f},   // top-left
-                {0.5f, -0.5f, 0.5f},  // bottom-left
-
-                // Bottom face
-                {-0.5f, -0.5f, -0.5f}, // top-right
-                {0.5f, -0.5f, -0.5f},  // top-left
-                {0.5f, -0.5f, 0.5f},   // bottom-left
-                {0.5f, -0.5f, 0.5f},   // bottom-left
-                {-0.5f, -0.5f, 0.5f},  // bottom-right
-                {-0.5f, -0.5f, -0.5f}, // top-right
-
-                // Top face
-                {-0.5f, 0.5f, -0.5f}, // top-left
-                {0.5f, 0.5f, 0.5f},   // bottom-right
-                {0.5f, 0.5f, -0.5f},  // top-right
-                {0.5f, 0.5f, 0.5f},   // bottom-right
-                {-0.5f, 0.5f, -0.5f}, // top-left
-                {-0.5f, 0.5f, 0.5f},  // bottom-left
-            };
-
-            for (int32_t i = 0; i < 36; i += 3) {
-                glm::vec4 world_coords[3];
-                glm::vec3 screen_coords[3];
-
-                for (int32_t j = 0; j < 3; j++) {
-                    glm::vec3 vert     = vertices[i + j];
-                    world_coords[j]    = m_ModelM * glm::vec4(vert, 1.f);
-                    glm::vec4 eye_pos  = world_coords[j] * m_View;
-                    glm::vec4 clip_pos = eye_pos * m_Projection;
-
-                    glm::vec3 ndc_pos =
-                        glm::vec3(clip_pos.x / clip_pos.w, clip_pos.y / clip_pos.w, clip_pos.z / clip_pos.w);
-                    glm::vec3 screen_coord = viewport_transform(m_ViewportWidth, m_ViewportHeight, ndc_pos);
-                    screen_coords[j]       = screen_coord;
-                }
-                TGAColor color = TGAColor(i / 36.f * 255, i / 36.f * 255, i / 36.f * 255, 255.f);
-                DrawTriangle(screen_coords, m_Zbuffer, m_Image, color);
-            }
-        } else {
-        }
-
         reset_camera();
         m_Image->setData(m_DrawData._rdBuffer->_colorBuffer);
         // delete m_DrawData._rdBuffer;
@@ -243,7 +186,7 @@ private:
     // 天空盒
     Model* m_skyBox = nullptr;
 
-    float  m_Zbuffer[2000 * 2000];
+    float  m_Zbuffer[appWidth * appHeight];
     Camera m_Camera;
 
     float m_Time = 0.f;

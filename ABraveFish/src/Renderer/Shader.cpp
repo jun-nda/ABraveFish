@@ -50,6 +50,8 @@ shader_struct_v2f BlinnShader::vertex(shader_struct_a2v* a2v) {
 bool BlinnShader::fragment(shader_struct_v2f* v2f, Color& color) {
     glm::vec3 worldNormalDir = glm::normalize(v2f->_worldNormal);
     Color     albedo         = diffuseSample(v2f->_uv) * _material.color;
+    //Color     albedo         =  _material.color;
+
 
     Color     ambient = glm::dot(_material.color, albedo);
     float     n_dot_l = saturate(glm::dot(worldNormalDir, _lightDir));
@@ -60,8 +62,9 @@ bool BlinnShader::fragment(shader_struct_v2f* v2f, Color& color) {
         _ligthColor * _material.specular * std::pow(saturate(glm::dot(worldNormalDir, halfDir)), _material.gloss);
 
     // glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
-    // color = ambient + (diffuse + spcular);
-    color = albedo;
+    color = ambient + (diffuse + spcular);
+    //color = diffuse + spcular; 
+    //color = albedo;
 
      //color               = Color(255, 255, 255);
     return false;

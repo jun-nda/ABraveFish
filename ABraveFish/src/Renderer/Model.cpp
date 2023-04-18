@@ -81,6 +81,7 @@ glm::vec3 Model::getVert(int32_t i) { return _verts[i]; }
 
 glm::vec2 Model::getUV(int32_t iface, int32_t nvert) {
     int32_t idx = _faces[iface][nvert].y;
+    //std::cout << _uv[idx].x << " " << _uv[idx].y << std::endl;
     return glm::vec2({_uv[idx].x * _diffuseMap.get_width(), _uv[idx].y * _diffuseMap.get_height()});
 }
 

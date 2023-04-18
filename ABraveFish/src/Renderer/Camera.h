@@ -139,7 +139,7 @@ typedef enum class KeyCode : uint16_t {
 
 class Camera {
 public:
-    Camera(glm::vec3 e = glm::vec3(0.f, 0.f, 3.f), glm::vec3 t = glm::vec3(0.f, 0.f, -1.f),
+    Camera(glm::vec3 e = glm::vec3(0.f, 1.f, 5.f), glm::vec3 t = glm::vec3(0.f, 1.f, 0.f),
            glm::vec3 up = glm::vec3(0.f, 1.f, 0.f));
     ~Camera();
 
@@ -150,7 +150,7 @@ public:
     glm::vec3  y;
     glm::vec3  z;
 
-    float width = 1600.f, height = 900.f;
+    float width = 1280.f, height = 720.f;
 };
 
 // handle event

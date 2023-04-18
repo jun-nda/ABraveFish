@@ -261,14 +261,9 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
             //±äÁ¿²åÖµ
             shader_struct_v2f interpolate_v2f;
             interpolate_varyings(v2fs, &interpolate_v2f, sizeof(shader_struct_v2f), bc_screen, recip_w);
-            float     Z = 1.0 / (bc_screen.x / v2fs[0]._clipPos.w + bc_screen.y / v2fs[1]._clipPos.w +
+            float Z = 1.0 / (bc_screen.x / v2fs[0]._clipPos.w + bc_screen.y / v2fs[1]._clipPos.w +
                              bc_screen.z / v2fs[2]._clipPos.w);
-            
-            glm::vec2 uvP =
-                (bc_screen.x * v2fs[0]._uv / v2fs[0]._clipPos.w + bc_screen.y * v2fs[1]._uv / v2fs[1]._clipPos.w +
-                 bc_screen.z * v2fs[2]._uv / v2fs[2]._clipPos.w) *
-                Z;
-            interpolate_v2f._uv = uvP;
+
             Color color;
             bool  discard = data->_shader->fragment(&interpolate_v2f, color);
 

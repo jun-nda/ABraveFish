@@ -109,7 +109,7 @@ void handle_key_events(Camera& camera) {
 
     glm::vec2 windowSize(camera.width, camera.height);
     if (isKeyDown(KeyCode::W)) {
-        camera.eye += -10.0f / (camera.z * distance * (float)camera.width);
+        camera.eye += -10.0f / (float)camera.width * camera.z * distance;
     }
     if (isKeyDown(KeyCode::S)) {
         camera.eye += 0.05f * camera.z;
@@ -178,10 +178,6 @@ void onMotion(GLFWwindow* window, double x, double y) {
 
 void onScroll(GLFWwindow* window, double x, double y) {
     wheel_delta -= (float)y/6.f;
-    //if (wheel_delta < 1.0f)
-    //    wheel_delta = 1.0f;
-    //if (wheel_delta > 89.0f)
-    //    wheel_delta = 89.0f;
 }
 
 } // namespace ABraveFish

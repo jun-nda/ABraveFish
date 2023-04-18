@@ -10,10 +10,13 @@
 #include "imgui.h"
 
 namespace ABraveFish {
+const int32_t appWidth  = 1280;
+const int32_t appHeight = 720;
+
 struct ApplicationSpecification {
     std::string Name   = "ABraveFish App";
-    uint32_t    Width  = 1600;
-    uint32_t    Height = 900;
+    uint32_t    Width  = appWidth;
+    uint32_t    Height = appHeight;
 };
 
 class Window;
