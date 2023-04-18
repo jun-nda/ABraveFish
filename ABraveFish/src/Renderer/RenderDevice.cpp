@@ -11,7 +11,7 @@ namespace ABraveFish {
 //    {1}
 //}
 
-void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, TGAImage* image, TGAColor color) {
+void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, RenderBuffer* rdBuffer, TGAColor color) {
     bool steep = false;
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
         std::swap(x0, y0);
@@ -31,9 +31,9 @@ void DrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, TGAImage* image, T
     int32_t y = y0;
     for (int32_t x = x0; x <= x1; x++) {
         if (steep) {
-            image->set(y, x, color);
+            rdBuffer->setColor(y, x, color);
         } else {
-            image->set(x, y, color);
+            rdBuffer->setColor(x, y, color);
         }
         error2 += derror2;
         if (error2 > dx) {
@@ -180,7 +180,7 @@ void interpolate_varyings(shader_struct_v2f* v2f, shader_struct_v2f* ret, int si
     }
 }
 
-void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox, int32_t index) {
+void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
     auto rdBuffer = data->_rdBuffer;
     auto zbuffer  = data->_zBuffer;
     auto model    = data->_model;
@@ -210,6 +210,7 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox, int32
         screenDepths[i]        = screen_coord.z;
     }
 
+    // 屏幕空间简单裁剪
     // for (int32_t i = 0; i < 3; i++) {
     //    // perspective division and viewport transform
     //    if (screen_coords[i].x < 0.f || screen_coords[i].y < 0.f || screen_coords[i].x > width ||
@@ -244,8 +245,6 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox, int32
 
     glm::vec3 P(1.f);
 
-    // 未进行裁剪，当一个三角形有顶点在外面的时候，也进行光栅化，但只光栅了屏幕空间范围内的部分
-
     for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
         for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
             glm::vec3 bc_screen = Barycentric(screen_coords, P.x + 0.5f, P.y + 0.5f);
@@ -262,7 +261,14 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox, int32
             //变量插值
             shader_struct_v2f interpolate_v2f;
             interpolate_varyings(v2fs, &interpolate_v2f, sizeof(shader_struct_v2f), bc_screen, recip_w);
-
+            float     Z = 1.0 / (bc_screen.x / v2fs[0]._clipPos.w + bc_screen.y / v2fs[1]._clipPos.w +
+                             bc_screen.z / v2fs[2]._clipPos.w);
+            
+            glm::vec2 uvP =
+                (bc_screen.x * v2fs[0]._uv / v2fs[0]._clipPos.w + bc_screen.y * v2fs[1]._uv / v2fs[1]._clipPos.w +
+                 bc_screen.z * v2fs[2]._uv / v2fs[2]._clipPos.w) *
+                Z;
+            interpolate_v2f._uv = uvP;
             Color color;
             bool  discard = data->_shader->fragment(&interpolate_v2f, color);
 
@@ -305,20 +311,19 @@ void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v, bool isSkyBox)
             indexArray[2] = i + 2;
             // transform data to real vertex attri
             transformAttri(v2fs, shader->_homogenousClip, indexArray);
-            rasterization(drawData, v2fs, isSkyBox, i);
+            rasterization(drawData, v2fs, isSkyBox);
         }
     }
 }
 
-void transformAttri(shader_struct_v2f* v2fs, HomogenousClip& clipData, int32_t* indexArray) { 
+void transformAttri(shader_struct_v2f* v2fs, HomogenousClip& clipData, int32_t* indexArray) {
     for (int i = 0; i < 3; i++) {
-        v2fs[i]._clipPos = clipData.out_clipcoord[indexArray[i]];
-        v2fs[i]._worldPos = clipData.out_worldcoord[indexArray[i]];
-        v2fs[i]._uv = clipData.out_uv[indexArray[i]];
+        v2fs[i]._clipPos     = clipData.out_clipcoord[indexArray[i]];
+        v2fs[i]._worldPos    = clipData.out_worldcoord[indexArray[i]];
+        v2fs[i]._uv          = clipData.out_uv[indexArray[i]];
         v2fs[i]._worldNormal = clipData.out_normal[indexArray[i]];
     }
 }
-
 
 int32_t homoClipping(HomogenousClip& clipData) {
     int32_t num_vertex = 3;

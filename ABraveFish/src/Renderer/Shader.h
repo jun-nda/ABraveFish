@@ -69,8 +69,8 @@ struct shader_struct_v2f {
     glm::vec3 _worldPos;
     glm::vec3 _worldNormal;
     glm::vec2 _uv;
-    float     _intensity;
-    float     _screenDepth;
+    //float     _intensity;
+    //float     _screenDepth;
 };
 
 enum class ShaderType { None = 0, BlinnShader = 1, SkyBoxShader = 2 };

@@ -101,7 +101,7 @@ public:
         }
         if (m_Zbuffer) {
             // std::fill(m_Zbuffer, m_Zbuffer + 2000 * 2000, 1.f);
-            for (int i = 1600 * 900; i--; m_Zbuffer[i] = 2.f)
+            for (int i = 1600 * 900; i--; m_Zbuffer[i] = 1.f)
                 ;
         }
 
@@ -140,21 +140,21 @@ public:
             m_DrawData._zBuffer = m_Zbuffer;
 
             // draw call entrypoint
-            //vertexProcessing(&m_DrawData, &a2v);
+            vertexProcessing(&m_DrawData, &a2v);
         }
 
         // skybox
-        m_DrawData._model  = m_skyBox;
-        shaderType         = ShaderType::SkyBoxShader;
-        m_DrawData._shader = Create();
-        m_View             = glm::mat4(glm::mat3(m_View)); // 去掉translate
-        //m_View[3][0] = 0;
-        //m_View[3][1] = 0;
-        //m_View[3][2] = 0;
-        m_DrawData._shader->setTransform(m_ModelM, m_View, m_Projection, m_ModelInv);
-        m_DrawData._shader->setSkyBox(&m_skyBox->_enviromentMap);
+        //m_DrawData._model  = m_skyBox;
+        //shaderType         = ShaderType::SkyBoxShader;
+        //m_DrawData._shader = Create();
+        //m_View             = glm::mat4(glm::mat3(m_View)); // 去掉translate
+        ////m_View[3][0] = 0;
+        ////m_View[3][1] = 0;
+        ////m_View[3][2] = 0;
+        //m_DrawData._shader->setTransform(m_ModelM, m_View, m_Projection, m_ModelInv);
+        //m_DrawData._shader->setSkyBox(&m_skyBox->_enviromentMap);
 
-        vertexProcessing(&m_DrawData, &a2v, IS_SKYBOX);
+        //vertexProcessing(&m_DrawData, &a2v, IS_SKYBOX);
 
         bool isCube = false;
         if (isCube) {

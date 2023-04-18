@@ -23,7 +23,7 @@ void Shader::setSkyBox(CubeMap* cubeMap) {
 
 glm::vec4 Shader::object2ClipPos(const glm::vec3& objPos) {
     glm::vec4 temp = VEC4(objPos) * _transform._model * _transform._view;
-    //std::cout << temp.x << " " << temp.y << " " << temp.z << " " << temp.w << std::endl;
+    // std::cout << temp.x << " " << temp.y << " " << temp.z << " " << temp.w << std::endl;
     return temp * _transform._projection;
 }
 
@@ -38,6 +38,12 @@ shader_struct_v2f BlinnShader::vertex(shader_struct_a2v* a2v) {
     v2f._worldPos    = object2WorldPos(a2v->_objPos);
     v2f._worldNormal = object2WorldNormal(a2v->_objNormal);
     v2f._uv          = a2v->_uv;
+
+    // for homogenous clipping
+    _homogenousClip.in_clipcoord[a2v->_vertIndex]  = v2f._clipPos;
+    _homogenousClip.in_worldcoord[a2v->_vertIndex] = v2f._worldPos;
+    _homogenousClip.in_normal[a2v->_vertIndex]     = v2f._worldNormal;
+    _homogenousClip.in_uv[a2v->_vertIndex]         = v2f._uv;
     return v2f;
 }
 
@@ -54,10 +60,10 @@ bool BlinnShader::fragment(shader_struct_v2f* v2f, Color& color) {
         _ligthColor * _material.specular * std::pow(saturate(glm::dot(worldNormalDir, halfDir)), _material.gloss);
 
     // glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
-    //color = ambient + (diffuse + spcular);
-    color = diffuse;
+    // color = ambient + (diffuse + spcular);
+    color = albedo;
 
-    // color               = Color(255, 255, 255);
+     //color               = Color(255, 255, 255);
     return false;
 }
 
@@ -93,19 +99,20 @@ int32_t BlinnShader::isInShadow(glm::vec4 depthPos, float n_dot_l) {
 shader_struct_v2f SkyBoxShader::vertex(shader_struct_a2v* a2v) {
     shader_struct_v2f v2f;
     v2f._clipPos   = object2ClipPos(a2v->_objPos);
+    v2f._clipPos.z = v2f._clipPos.w;
     // std::cout << v2f._clipPos.x << " " << v2f._clipPos.y << " " << v2f._clipPos.z << std::endl;
     v2f._worldPos = a2v->_objPos;
 
     // for homogenous clipping
-    _homogenousClip.in_clipcoord[a2v->_vertIndex] = v2f._clipPos;
+    _homogenousClip.in_clipcoord[a2v->_vertIndex]  = v2f._clipPos;
     _homogenousClip.in_worldcoord[a2v->_vertIndex] = v2f._worldPos;
 
     return v2f;
 }
 
 bool SkyBoxShader::fragment(shader_struct_v2f* v2f, Color& color) {
-     color = cubemapSampling(v2f->_worldPos, _material._cubeMap);
-    //color = Color(1.f, 0.f, 0.f, 1.f);
+    color = cubemapSampling(v2f->_worldPos, _material._cubeMap);
+    // color = Color(1.f, 0.f, 0.f, 1.f);
 
     return false;
 }
