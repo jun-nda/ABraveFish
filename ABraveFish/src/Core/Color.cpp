@@ -16,6 +16,12 @@ Color::Color(const TGAColor& tga_color)
     , g(tga_color.bgra[1] / 255.f)
     , b(tga_color.bgra[0] / 255.f)
     , a(tga_color.bgra[3] / 255.f) {}
+Color::Color(const glm::vec3& color)
+    : r(color.r)
+    , g(color.g)
+    , b(color.b)
+    , a(1.f) {}
+
 
 float Color::MAX_CHANNEL_VALUE = 1.f;
 Color Color::White(MAX_CHANNEL_VALUE, MAX_CHANNEL_VALUE, MAX_CHANNEL_VALUE);

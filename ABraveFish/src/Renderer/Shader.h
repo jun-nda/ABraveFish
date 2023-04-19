@@ -34,9 +34,14 @@ struct Material {
     TGAImage* _diffuseMap;
     TGAImage* _normalMap;
     TGAImage* _specularMap;
-    Color     color; // 暂时不知道用来干啥的
-    Color     specular;
-    float     gloss;
+    TGAImage* _roughnessMap;
+    TGAImage* _metalnessMap;
+    TGAImage* _occlusionMap;
+    TGAImage* _emissionMap;
+
+    Color color; // 暂时不知道用来干啥的
+    Color specular;
+    float gloss;
 
     CubeMap* _cubeMap;
     // float     bump_scale;
@@ -78,7 +83,7 @@ struct shader_struct_v2f {
     // float     _screenDepth;
 };
 
-enum class ShaderType { None = 0, BlinnShader = 1, SkyBoxShader = 2 };
+enum class ShaderType { None = 0, BlinnShader = 1, SkyBoxShader = 2, PBRShader = 3 };
 static ShaderType shaderType = ShaderType::BlinnShader;
 
 class Shader {
@@ -136,21 +141,32 @@ public:
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
 };
 
-class SkyBoxShader : public Shader {
+class PBRShader : public BlinnShader {
 public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
 
 protected:
-    Color   cubemapSampling(const glm::vec3& direction, CubeMap* cubeMap);
+    float     roughnessSample(const glm::vec2& uv);
+    float     metalnessSample(const glm::vec2& uv);
+    float     occlusionSample(const glm::vec2& uv);
+    glm::vec3 emissionSample(const glm::vec2& uv);
+
+    glm::vec3 cubemapSampling(const glm::vec3& direction, CubeMap* cubeMap);
+
+protected:
     int32_t calCubeMapUV(const glm::vec3& direction, glm::vec2& uv);
 };
 
-class PBRShader : public Shader {
+class SkyBoxShader : public PBRShader {
 public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
+
+
 };
+
+
 
 static Ref<Shader> Create() {
     switch (shaderType) {
@@ -160,6 +176,8 @@ static Ref<Shader> Create() {
             return CreateRef<BlinnShader>();
         case ShaderType::SkyBoxShader:
             return CreateRef<SkyBoxShader>();
+        case ShaderType::PBRShader:
+            return CreateRef<PBRShader>();
     }
 
     return nullptr;
