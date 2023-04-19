@@ -14,6 +14,9 @@
 
 #define GLM_SWIZZLE
 #define MAX_VERTEX 10
+#define MAX_SCENENUM 10
+#define MAX_MODELNUM 10
+
 
 namespace ABraveFish {
 

@@ -7,10 +7,7 @@ static float     saturate(float f) { return f < 0 ? 0 : (f > 1 ? 1 : f); }
 static glm::vec3 color2Vec3(Color color) { return glm::vec3(color.r, color.g, color.b); }
 
 static Color AMBIENT = Color(54.f / 255, 58.f / 255, 66.f / 255);
-void         Shader::setTransform(const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection,
-                          const glm::mat4& modelInv) {
-    _transform = Transform(model, view, projection, modelInv);
-}
+void         Shader::setTransform(Transform* transform) { _transform = Transform(*transform); }
 
 void Shader::setMaterial(const Material& material) { _material = material; }
 void Shader::setSkyBox(CubeMap* cubeMap) {
@@ -64,7 +61,7 @@ bool BlinnShader::fragment(shader_struct_v2f* v2f, Color& color) {
     // glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
     color = ambient + (diffuse + spcular);
     //color = diffuse + spcular; 
-    //color = albedo;
+    color = albedo;
 
      //color               = Color(255, 255, 255);
     return false;
@@ -184,6 +181,28 @@ int32_t SkyBoxShader::calCubeMapUV(const glm::vec3& direction, glm::vec2& uv) {
     uv[1] = (tc / ma + 1.0f) / 2.0f;
 
     return face_index;
+}
+
+// PBR shader
+shader_struct_v2f PBRShader::vertex( shader_struct_a2v* a2v ) {
+    shader_struct_v2f v2f;
+    v2f._clipPos     = object2ClipPos(a2v->_objPos);
+    v2f._worldPos    = object2WorldPos(a2v->_objPos);
+    v2f._worldNormal = object2WorldNormal(a2v->_objNormal);
+    v2f._uv          = a2v->_uv;
+
+    // for homogenous clipping
+    _homogenousClip.in_clipcoord[a2v->_vertIndex]  = v2f._clipPos;
+    _homogenousClip.in_worldcoord[a2v->_vertIndex] = v2f._worldPos;
+    _homogenousClip.in_normal[a2v->_vertIndex]     = v2f._worldNormal;
+    _homogenousClip.in_uv[a2v->_vertIndex]         = v2f._uv;
+    return v2f;
+}
+
+bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) { 
+    glm::vec3 CookTorranceBrdf;
+    glm::vec3 lightPos(2.f, 1.5f, 5.f);
+    glm::vec3 radiance(3.f, 3.f, 3.f);
 }
 
 } // namespace ABraveFish

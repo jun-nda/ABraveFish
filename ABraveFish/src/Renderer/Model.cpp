@@ -8,7 +8,7 @@
 #include "Util.h"
 
 namespace ABraveFish {
-Model::Model(const char* filename, bool isSkyBox)
+Model::Model(const char* filename, bool isSkyBox, bool vReverse)
     : _verts()
     , _faces()
     , _norms()
@@ -37,6 +37,9 @@ Model::Model(const char* filename, bool isSkyBox)
             iss >> trash >> trash;
             glm::vec2 uv;
             iss >> uv.x >> uv.y;
+            if (vReverse) {
+                uv.y = 2 - uv.y;
+            }
             _uv.push_back(uv);
         } else if (!line.compare(0, 2, "f ")) {
             std::vector<glm::vec3> f;
@@ -60,7 +63,12 @@ Model::Model(const char* filename, bool isSkyBox)
     } else {
         loadTexture(filename, "_diffuse.tga", _diffuseMap);
         //loadTexture(filename, "_nm_tangent.tga", _normalMap);
-        loadTexture(filename, "_spec.tga", _specularMap);
+        loadTexture(filename, "_metalness.tga", _metalnessMap);
+        loadTexture(filename, "_normal.tga", _normalMap);
+        loadTexture(filename, "_occlusion.tga", _occlusionMap);
+        loadTexture(filename, "_roughness.tga", _roughnessMap);
+        //loadTexture(filename, "_spec.tga", _specularMap);
+
     } 
 }
 
@@ -101,6 +109,9 @@ void Model::loadCubeMap(const char* filename) {
     loadTexture(filename, "_bottom.tga", _enviromentMap.faces[3]);
     loadTexture(filename, "_back.tga", _enviromentMap.faces[4]);
     loadTexture(filename, "_front.tga", _enviromentMap.faces[5]);
+    for (int i = 0; i < 6; i++) {
+        _enviromentMap.faces[i].flip_vertically();
+    }
 }
 
 } // namespace ABraveFish

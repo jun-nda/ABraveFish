@@ -1,9 +1,9 @@
 ﻿/*
  * 空间变换部分的两个坑： 1. glm矩阵乘法是反着的。 2. games101只讲了mvp，之后还要进行透视除法。
- */
-/*
- * TODO:
- * 1. tgaimage to renderbuffer
+ * 一定要进行裁剪，不然w为负值的时候会画出奇怪的东西，画天空盒的时候发现的
+ *
+ *
+ *
  *
  */
 
@@ -20,28 +20,12 @@
 
 #include <glm/glm.hpp>
 #include "Core/Macros.h"
-#include "Renderer/Camera.h"
-#include "Renderer/RenderBuffer.h"
-#include "Renderer/RenderDevice.h"
-#include "Renderer/Shader.h"
+#include "Renderer/Scene.h"
+
 #include "Renderer/Util.h"
 using namespace ABraveFish;
 
 const int depth = 255;
-
-glm::vec3 light_dir(2, 2, 2); // define light_dir
-
-void buildQiyanaScene(Model** model,int32_t& modelNum ,int32_t& vertexNum, int32_t& faceNum) {
-    modelNum                    = 3;
-    const char* fileNames[] = {"obj/qiyana/qiyanabody.obj", "obj/qiyana/qiyanaface.obj", "obj/qiyana/qiyanahair.obj"};
-
-    for (int i = 0; i < modelNum; i++) {
-        model[i] = new Model(fileNames[i]);
-        vertexNum += model[i]->getVertCount();
-        faceNum += model[i]->getFaceCount();
-    }
-}
-
 
 class BraveFishLayer : public Layer {
 public:
@@ -51,14 +35,10 @@ public:
     virtual void OnAttach() override {
         for (int i = appWidth * appHeight; i--; m_Zbuffer[i] = 1.f)
             ;
-        //m_Models[0] = new Model("obj/fuhua/fuhuabody.obj");
-        //m_Models[1] = new Model("obj/fuhua/fuhuahair.obj");
-        //m_Models[2] = new Model("obj/fuhua/fuhuaface.obj");
-        //m_Models[3] = new Model("obj/fuhua/fuhuacloak.obj");
-        m_Models[0] = new Model("obj/qiyana/qiyanabody.obj");
-        m_Models[1] = new Model("obj/qiyana/qiyanaface.obj");
-        m_Models[2] = new Model("obj/qiyana/qiyanahair.obj");
-        //m_Models[3] = new Model("obj/fuhua/fuhuacloak.obj");
+
+        m_BuildScene[0] = buildQiyanaScene;
+        m_BuildScene[1] = buldFuhuaScene;
+        m_BuildScene[2] = buldHelmetScene;
     }
 
     virtual void OnUpdate(float ts) override {
@@ -78,11 +58,22 @@ public:
         ImGui::Text("Last render: %.3fms", m_Time);
         ImGui::Text("FPS: %.f", 1000.f / m_Time);
 
-        ImGui::Text("CameraPos: %.3f, %.3f, %.3f", m_Camera.eye.x, m_Camera.eye.y, m_Camera.eye.z);
+        ImGui::Text("CameraPos: %.2f, %.2f, %.2f", m_Camera.eye.x, m_Camera.eye.y, m_Camera.eye.z);
+
+        ImGui::Text("VertexNum: %d", m_VertexNum);
+        ImGui::Text("FaceNum: %d", m_FaceNum);
+
+        if (ImGui::Button("fuhua")) {
+            m_SceneIndex = 1;
+        }
 
         ImGui::End();
 
+
         ImGui::Begin("Render");
+
+        //ImGui::ShowDemoWindow();
+
 
         m_ViewportWidth  = ImGui::GetContentRegionAvail().x;
         m_ViewportHeight = ImGui::GetContentRegionAvail().y;
@@ -104,10 +95,6 @@ public:
     }
 
     void Render() {
-        if (!m_Models) {
-
-        }
-
         if (!m_skyBox) {
             m_skyBox = new Model("obj/skybox4/box.obj", IS_SKYBOX);
         }
@@ -140,37 +127,12 @@ public:
             m_DrawData._rdBuffer = new RenderBuffer(m_ViewportWidth, m_ViewportHeight);
         else
             m_DrawData._rdBuffer->clearColor(Color(0, 0.2, 0.3f, 1));
-        for (int32_t i = 0; i < 3; ++i) {
-            shaderType            = ShaderType::BlinnShader;
-            m_DrawData._shader    = Create();
 
-            m_DrawData._shader->setTransform(m_ModelM, m_View, m_Projection, m_ModelInv);
-            m_DrawData._shader->setMaterial({&m_Models[i]->_diffuseMap, &m_Models[i]->_normalMap,
-                                             &m_Models[i]->_specularMap, Color(0.6f, 0.6f, 0.6f),
-                                             Color(0.6f, 0.6f, 0.6f),
-                                             50});
-            std::dynamic_pointer_cast<BlinnShader>(m_DrawData._shader)->setLightData(light_dir, Color(1.f, 1.f, 1.f));
-            m_DrawData._model = m_Models[i];
+        Transform transform(m_ModelM, m_View, m_Projection, m_ModelInv);
 
 
-            m_DrawData._zBuffer = m_Zbuffer;
-
-            // draw call entrypoint
-            vertexProcessing(&m_DrawData, &a2v);
-        }
-
-        // skybox
-        //m_DrawData._model  = m_skyBox;
-        //shaderType         = ShaderType::SkyBoxShader;
-        //m_DrawData._shader = Create();
-        //m_View             = glm::mat4(glm::mat3(m_View)); // 去掉translate
-        ////m_View[3][0] = 0;
-        ////m_View[3][1] = 0;
-        ////m_View[3][2] = 0;
-        //m_DrawData._shader->setTransform(m_ModelM, m_View, m_Projection, m_ModelInv);
-        //m_DrawData._shader->setSkyBox(&m_skyBox->_enviromentMap);
-
-        //vertexProcessing(&m_DrawData, &a2v, IS_SKYBOX);
+        m_BuildScene[m_SceneIndex](m_Models, &m_DrawData, &transform, m_Zbuffer, &a2v, m_modelNum, m_VertexNum,
+                                   m_FaceNum);
 
         reset_camera();
         m_Image->setData(m_DrawData._rdBuffer->_colorBuffer);
@@ -182,7 +144,11 @@ public:
 private:
     uint32_t  m_ViewportWidth = 0, m_ViewportHeight = 0;
     TGAImage* m_Image = nullptr;
-    Model*    m_Models[4];
+
+    int32_t m_VertexNum = 0, m_FaceNum = 0;
+
+    int32_t m_modelNum;
+    Model*  m_Models[MAX_MODELNUM] = {nullptr};
     // 天空盒
     Model* m_skyBox = nullptr;
 
@@ -201,6 +167,10 @@ private:
     glm::mat4 m_View;
     glm::mat4 m_Projection;
     glm::mat4 m_ModelInv;
+
+    // bulid scene
+    buildSceneFunc m_BuildScene[MAX_SCENENUM];
+    int32_t m_SceneIndex = 2;
 };
 
 ABraveFish::Application* ABraveFish::CreateApplication() {

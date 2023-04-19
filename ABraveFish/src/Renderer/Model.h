@@ -14,7 +14,7 @@ struct CubeMap {
 
 class Model {
 public:
-    Model(const char* filename, bool isSkyBox = false);
+    Model(const char* filename, bool isSkyBox = false, bool vReverse = false);
     ~Model();
     int32_t              getVertCount();
     int32_t              getFaceCount();
@@ -33,6 +33,11 @@ public:
     TGAImage _diffuseMap;
     TGAImage _normalMap;
     TGAImage _specularMap;
+    TGAImage _metalnessMap;
+    TGAImage _occlusionMap;
+    TGAImage _roughnessMap;
+    TGAImage _emissionMap;
+
 
     CubeMap _enviromentMap;
 

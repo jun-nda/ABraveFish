@@ -22,6 +22,12 @@ struct Transform {
         , _view(view)
         , _projection(projection)
         , _modelInv(modelInv) {}
+    Transform(const Transform& transform) {
+        _model      = transform._model;
+        _view       = transform._view;
+        _projection = transform._projection;
+        _modelInv   = transform._modelInv;
+    }
 };
 
 struct Material {
@@ -35,7 +41,6 @@ struct Material {
     CubeMap* _cubeMap;
     // float     bump_scale;
 };
-
 
 // 齐次裁剪所用到的数据
 struct HomogenousClip {
@@ -69,8 +74,8 @@ struct shader_struct_v2f {
     glm::vec3 _worldPos;
     glm::vec3 _worldNormal;
     glm::vec2 _uv;
-    //float     _intensity;
-    //float     _screenDepth;
+    // float     _intensity;
+    // float     _screenDepth;
 };
 
 enum class ShaderType { None = 0, BlinnShader = 1, SkyBoxShader = 2 };
@@ -81,8 +86,7 @@ public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v)                 = 0;
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) = 0;
 
-    void setTransform(const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection,
-                      const glm::mat4& modelInv);
+    void setTransform(Transform* transform);
     void setMaterial(const Material& material);
     void setSkyBox(CubeMap* cubeMap);
 
@@ -103,7 +107,7 @@ struct DrawData {
     Model*        _model;
     float*        _zBuffer;
     RenderBuffer* _rdBuffer = nullptr;
-    Ref<Shader> _shader;
+    Ref<Shader>   _shader;
 };
 
 class BlinnShader : public Shader {
