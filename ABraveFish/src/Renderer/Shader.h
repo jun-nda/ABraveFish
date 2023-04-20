@@ -159,6 +159,9 @@ protected:
 
 protected:
     int32_t calCubeMapUV(const glm::vec3& direction, glm::vec2& uv);
+
+public:
+    glm::mat3 TBN;
 };
 
 class SkyBoxShader : public PBRShader {
