@@ -37,6 +37,7 @@ buildSceneFunc buildQiyanaScene = [](Model** model, DrawData* drawData, Transfor
                                         nullptr, nullptr, nullptr, Color(0.8f, 0.8f, 0.8f), Color(0.8f, 0.8f, 0.8f),
                                         50});
         std::dynamic_pointer_cast<BlinnShader>(drawData->_shader)->setLightData(light_dir, Color(1.f, 1.f, 1.f));
+        std::dynamic_pointer_cast<BlinnShader>(drawData->_shader)->setEyePos(drawData->_camera->eye);
 
         drawData->_shader->setTransform(transform);
 
@@ -70,6 +71,7 @@ buildSceneFunc buldFuhuaScene = [](Model** model, DrawData* drawData, Transform*
                                         nullptr, nullptr, nullptr, Color(0.8f, 0.8f, 0.8f), Color(0.8f, 0.8f, 0.8f),
                                         50});
         std::dynamic_pointer_cast<BlinnShader>(drawData->_shader)->setLightData(light_dir, Color(1.f, 1.f, 1.f));
+        std::dynamic_pointer_cast<BlinnShader>(drawData->_shader)->setEyePos(drawData->_camera->eye);
 
         drawData->_shader->setTransform(transform);
 
@@ -110,7 +112,10 @@ buildSceneFunc buldHelmetScene = [](Model** model, DrawData* drawData, Transform
                                             &model[i]->_roughnessMap, &model[i]->_metalnessMap,
                                             &model[i]->_occlusionMap, &model[i]->_emissionMap, Color(0.6f, 0.6f, 0.6f),
                                             Color(0.6f, 0.6f, 0.6f), 50});
-            std::dynamic_pointer_cast<BlinnShader>(drawData->_shader)->setLightData(light_dir, Color(1.f, 1.f, 1.f));
+            std::dynamic_pointer_cast<PBRShader>(drawData->_shader)->setLightData(light_dir, Color(1.f, 1.f, 1.f));
+            std::dynamic_pointer_cast<PBRShader>(drawData->_shader)->setEyePos(drawData->_camera->eye);
+
+            
         }
 
         drawData->_model   = model[i];

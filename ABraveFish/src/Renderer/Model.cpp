@@ -62,9 +62,8 @@ Model::Model(const char* filename, bool isSkyBox, bool vReverse)
         loadCubeMap(filename);
     } else {
         loadTexture(filename, "_diffuse.tga", _diffuseMap);
-        //loadTexture(filename, "_nm_tangent.tga", _normalMap);
-        loadTexture(filename, "_metalness.tga", _metalnessMap);
         loadTexture(filename, "_normal.tga", _normalMap);
+        loadTexture(filename, "_metalness.tga", _metalnessMap);
         loadTexture(filename, "_occlusion.tga", _occlusionMap);
         loadTexture(filename, "_roughness.tga", _roughnessMap);
         //loadTexture(filename, "_spec.tga", _specularMap);

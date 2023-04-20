@@ -180,6 +180,37 @@ void interpolate_varyings(shader_struct_v2f* v2f, shader_struct_v2f* ret, int si
     }
 }
 
+glm::vec3 cal_normal(vec3& normal, vec3* world_coords, const vec2* uvs, const vec2& uv, TGAImage* normal_map) {
+    // calculate the difference in UV coordinate
+    float x1  = uvs[1][0] - uvs[0][0];
+    float y1  = uvs[1][1] - uvs[0][1];
+    float x2  = uvs[2][0] - uvs[0][0];
+    float y2  = uvs[2][1] - uvs[0][1];
+    float det = (x1 * y2 - x2 * y1);
+
+    // calculate the difference in world pos
+    vec3 e1 = world_coords[1] - world_coords[0];
+    vec3 e2 = world_coords[2] - world_coords[0];
+
+    // calculate tangent-axis and bitangent-axis
+    vec3 t = e1 * y2 + e2 * (-y1);
+    vec3 b = e1 * (-x2) + e2 * x1;
+    t /= det;
+    b /= det;
+
+    // Schmidt orthogonalization
+    normal = unit_vector(normal);
+    t      = unit_vector(t - dot(t, normal) * normal);
+    b      = unit_vector(b - dot(b, normal) * normal - dot(b, t) * t);
+
+    vec3 sample = texture_sample(uv, normal_map);
+    // modify the range 0 ~ 1 to -1 ~ +1
+    sample = vec3(sample[0] * 2 - 1, sample[1] * 2 - 1, sample[2] * 2 - 1);
+
+    vec3 normal_new = t * sample[0] + b * sample[1] + normal * sample[2];
+    return normal_new;
+}
+
 void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
     auto rdBuffer = data->_rdBuffer;
     auto zbuffer  = data->_zBuffer;

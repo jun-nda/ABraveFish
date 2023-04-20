@@ -128,6 +128,8 @@ public:
         else
             m_DrawData._rdBuffer->clearColor(Color(0, 0.2, 0.3f, 1));
 
+        m_DrawData._camera = &m_Camera;
+
         Transform transform(m_ModelM, m_View, m_Projection, m_ModelInv);
 
 

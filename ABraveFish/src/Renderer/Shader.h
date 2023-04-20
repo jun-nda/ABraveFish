@@ -7,6 +7,7 @@
 
 #include "Core/Macros.h"
 #include "Model.h"
+#include "Camera.h"
 #include "glm/glm.hpp"
 
 namespace ABraveFish {
@@ -79,7 +80,7 @@ struct shader_struct_v2f {
     glm::vec3 _worldPos;
     glm::vec3 _worldNormal;
     glm::vec2 _uv;
-    // float     _intensity;
+    glm::vec3 _texNormal;
     // float     _screenDepth;
 };
 
@@ -110,6 +111,7 @@ protected:
 
 struct DrawData {
     Model*        _model;
+    Camera*       _camera;
     float*        _zBuffer;
     RenderBuffer* _rdBuffer = nullptr;
     Ref<Shader>   _shader;
@@ -121,6 +123,7 @@ public:
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
 
     void      setLightData(const glm::vec3& dir, const Color& color);
+    void      setEyePos(const glm::vec3& eyePos);
     glm::vec3 worldSpaceViewDir(glm::vec3 worldPos);
 
     Color diffuseSample(const glm::vec2& uv);

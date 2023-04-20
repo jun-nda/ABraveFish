@@ -1,4 +1,6 @@
 #include "Shader.h"
+#include "Shader/PBRFunc.h"
+
 #include <iostream>
 
 #define VEC4(pos) glm::vec4(pos, 1.f)
@@ -60,14 +62,14 @@ bool BlinnShader::fragment(shader_struct_v2f* v2f, Color& color) {
     // glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
     color = ambient + (diffuse + spcular);
     // color = diffuse + spcular;
-    color = albedo;
+    //color = albedo;
 
     // color               = Color(255, 255, 255);
     return false;
 }
 
-void BlinnShader::setLightData(const glm::vec3& dir, const Color& color) { _lightDir = dir, _ligthColor = color; }
-
+void      BlinnShader::setLightData(const glm::vec3& dir, const Color& color) { _lightDir = dir, _ligthColor = color; }
+void      BlinnShader::setEyePos(const glm::vec3& eyePos) { _eyePos = eyePos; }
 glm::vec3 BlinnShader::worldSpaceViewDir(glm::vec3 worldPos) { return _eyePos - worldPos; }
 
 Color BlinnShader::diffuseSample(const glm::vec2& uv) { return _material._diffuseMap->get(uv.x, uv.y); }
@@ -123,7 +125,7 @@ glm::vec3 PBRShader::cubemapSampling(const glm::vec3& direction, CubeMap* cubeMa
     TGAImage& map        = _material._cubeMap->faces[face_index];
     color                = map.get(uv.x * map.get_width(), uv.y * map.get_height());
 
-    return glm::vec3(color[0], color[1] , color[2]);
+    return glm::vec3(color[0], color[1], color[2]);
 }
 
 // core cubemap algorithm
@@ -198,67 +200,64 @@ shader_struct_v2f PBRShader::vertex(shader_struct_a2v* a2v) {
     return v2f;
 }
 
-static float GGX_distribution(float n_dot_h, float roughness) {
-    float alpha  = roughness * roughness;
-    float alpha2 = alpha * alpha;
-
-    float n_dot_h_2 = n_dot_h * n_dot_h;
-    float factor    = n_dot_h_2 * (alpha2 - 1) + 1;
-    return alpha2 / (PI * factor * factor);
-}
-
-static float SchlickGGX_geometry(float n_dot_v, float roughness) {
-    float r = (1 + roughness);
-    float k = r * r / 8.0;
-
-    return n_dot_v / (n_dot_v * (1 - k) + k);
-}
-
-//几何遮挡计算的是物体宏观表面的影响，所以是宏观法向
-static float geometry_Smith(float n_dot_v, float n_dot_l, float roughness) {
-    float g1 = SchlickGGX_geometry(n_dot_v, roughness);
-    float g2 = SchlickGGX_geometry(n_dot_l, roughness);
-
-    return g1 * g2;
-}
-
-//菲涅尔项是因观察角度与反射平面方向的夹角而引起的反射程度不同
-//所以菲尼尔项计算的是微平面法向(真正有贡献的微平面)与观察方向的夹角
-static glm::vec3 fresenlschlick(float h_dot_v, glm::vec3& f0) {
-    return f0 + (glm::vec3(1.0, 1.0, 1.0) - f0) * (float)pow(1 - h_dot_v, 5.0);
-}
-
-glm::vec3 fresenlschlick_roughness(float h_dot_v, glm::vec3& f0, float roughness) {
-    float r1 = 1.0f - roughness;
-    if (r1 < f0[0])
-        r1 = f0[0];
-    return f0 + (glm::vec3(r1, r1, r1) - f0) * pow(1 - h_dot_v, 5.0f);
-}
-
-// other utility functions
-float        float_clamp(float f, float min, float max) { return f < min ? min : (f > max ? max : f); }
-static float float_aces(float value) {
-    float a = 2.51f;
-    float b = 0.03f;
-    float c = 2.43f;
-    float d = 0.59f;
-    float e = 0.14f;
-    value   = (value * (a * value + b)) / (value * (c * value + d) + e);
-    return float_clamp(value, 0, 1);
-}
-
-static Color Reinhard_mapping(Color& color) {
-    int i;
-    for (i = 0; i < 3; i++) {
-        color[i] = float_aces(color[i]);
-        // color[i] = color[i] / (color[i] + 0.5);
-        color[i] = pow(color[i], 1.0 / 2.2);
-    }
-    return color;
-}
-
 // 未设置光源版本
-//bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
+bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
+    glm::vec3 CookTorranceBrdf;
+    glm::vec3 lightPos(2.f, 1.5f, 5.f);
+    glm::vec3 ligthtColor(1.f, 1.f, 1.f);
+
+    const auto& uv       = v2f->_uv;
+    const auto& worldpos = v2f->_worldPos;
+    const auto& normal   = v2f->_worldNormal;
+
+    glm::vec3 l = glm::normalize(lightPos - worldpos);
+    glm::vec3 v = glm::normalize(worldSpaceViewDir(worldpos));
+    glm::vec3 n = glm::normalize(normal);
+    glm::vec3 h = glm::normalize(l + v);
+
+    float n_dot_l = std::max(dot(n, l), 0.f);
+    if (n_dot_l > 0.f) {
+        float n_dot_v = std::max(dot(n, v), 0.f);
+        float n_dot_h = std::max(dot(n, h), 0.f);
+        float h_dot_v = std::max(dot(h, v), 0.f);
+
+        // get albedo
+        Color     albed = diffuseSample(uv);
+        glm::vec3 albedo(albed[0], albed[1], albed[2]);
+
+        float roughness = roughnessSample(uv);
+        float metalness = metalnessSample(uv);
+        float occlusion = occlusionSample(uv);
+
+        float distance    = (lightPos - worldpos).length();
+        float attenuation = 1.0 / (distance * distance);
+
+        glm::vec3 radiance = ligthtColor * attenuation;
+
+        glm::vec3 temp(0.04, 0.04, 0.04);
+        glm::vec3 f0 = glm::mix(temp, albedo, metalness);
+
+        float     NDF = distributionGGX(n_dot_h, roughness);
+        float     G   = geometry_Smith(n_dot_v, n_dot_l, roughness);
+        glm::vec3 F   = fresenlschlick(h_dot_v, f0);
+
+        glm::vec3 numerator   = NDF * G * F;
+        float     denominator = 4.0 * n_dot_v * n_dot_l + 0.0001; // +0.0001 to prevent divide by zero
+        glm::vec3 specular    = numerator / denominator;
+
+        glm::vec3 KS = F;
+        glm::vec3 kD = (glm::vec3(1.0f) - F) * (1 - metalness);
+
+        glm::vec3 Lo      = (kD * albedo / PI + specular) * radiance * n_dot_l;
+        glm::vec3 ambient = 0.05f * albedo * occlusion;
+        color             = Lo + ambient;
+        Reinhard_mapping(color);
+    }
+
+    return false;
+}
+
+// bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
 //    glm::vec3 CookTorranceBrdf;
 //    glm::vec3 lightPos(2.f, 1.5f, 5.f);
 //    glm::vec3 radiance(3.f, 3.f, 3.f);
@@ -267,35 +266,42 @@ static Color Reinhard_mapping(Color& color) {
 //    const auto& worldpos = v2f->_worldPos;
 //    const auto& normal   = v2f->_worldNormal;
 //
-//    glm::vec3 l = glm::normalize(lightPos - worldpos);
 //    glm::vec3 v = glm::normalize(worldSpaceViewDir(worldpos));
 //    glm::vec3 n = glm::normalize(normal);
-//    glm::vec3 h = glm::normalize(l + v);
 //
-//    float n_dot_l = std::max(dot(n, l), 0.f);
-//    if (n_dot_l > -0.f) {
-//        float n_dot_v = std::max(dot(n, v), 0.f);
-//        float n_dot_h = std::max(dot(n, h), 0.f);
-//        float h_dot_v = std::max(dot(h, v), 0.f);
+//    float n_dot_v = std::max(dot(n, v), 0.f);
+//    if (n_dot_v > 0.f) {
 //
 //        float roughness = roughnessSample(uv);
 //        float metalness = metalnessSample(uv);
-//
-//        float NDF = GGX_distribution(n_dot_h, roughness);
-//        float G   = geometry_Smith(n_dot_v, n_dot_l, roughness);
+//        float occlusion = occlusionSample(uv);
+//        glm::vec3  emission  = emissionSample(uv);
 //
 //        // get albedo
-//        Color albed = diffuseSample(uv);
+//        Color     albed = diffuseSample(uv);
 //        glm::vec3 albedo(albed[0], albed[1], albed[2]);
+//
 //        glm::vec3 temp(0.04, 0.04, 0.04);
+//        glm::vec3 temp2 = glm::vec3(1.0f, 1.0f, 1.0f);
 //        glm::vec3 f0 = glm::mix(temp, albedo, metalness);
 //
-//        glm::vec3 F  = fresenlschlick(h_dot_v, f0);
+//        glm::vec3 F  = fresenlschlick_roughness(n_dot_v, f0, roughness);
 //        glm::vec3 kD = (glm::vec3(1.0, 1.0, 1.0) - F) * (1 - metalness);
 //
+//        // diffuse color
+//        glm::vec3 irradiance = cubemapSampling(n, _material._cubeMap);
+//        for (int i = 0; i < 3; i++)
+//            irradiance[i] = pow(irradiance[i], 2.0f);
+//        glm::vec3 diffuse = irradiance * kD * albedo;
+//
+//        // specular color
+//        glm::vec r = glm::normalize(2.0f * glm::dot(v, n) * n - v);
+//        glm::vec2 lut_uv = glm::vec2(n_dot_v, roughness);
+//
+//
 //        CookTorranceBrdf = NDF * G * F / (float)(4.0 * n_dot_l * n_dot_v + 0.0001);
-//    
-//		glm::vec3 Lo = (kD * albedo / PI + CookTorranceBrdf) * radiance * n_dot_l;
+//
+//        glm::vec3 Lo      = (kD * albedo / PI + CookTorranceBrdf) * radiance * n_dot_l;
 //        glm::vec3 ambient = 0.05f * albedo;
 //        color             = Lo + ambient;
 //        Reinhard_mapping(color);
@@ -304,77 +310,23 @@ static Color Reinhard_mapping(Color& color) {
 //    return false;
 //}
 
-bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
-    glm::vec3 CookTorranceBrdf;
-    glm::vec3 lightPos(2.f, 1.5f, 5.f);
-    glm::vec3 radiance(3.f, 3.f, 3.f);
-
-    const auto& uv       = v2f->_uv;
-    const auto& worldpos = v2f->_worldPos;
-    const auto& normal   = v2f->_worldNormal;
-
-    glm::vec3 v = glm::normalize(worldSpaceViewDir(worldpos));
-    glm::vec3 n = glm::normalize(normal);
-
-    float n_dot_v = std::max(dot(n, v), 0.f);
-    if (n_dot_v > 0.f) {
-
-        float roughness = roughnessSample(uv);
-        float metalness = metalnessSample(uv);
-        float occlusion = occlusionSample(uv);
-        glm::vec3  emission  = emissionSample(uv);
-
-        // get albedo
-        Color     albed = diffuseSample(uv);
-        glm::vec3 albedo(albed[0], albed[1], albed[2]);
-
-        glm::vec3 temp(0.04, 0.04, 0.04);
-        glm::vec3 temp2 = glm::vec3(1.0f, 1.0f, 1.0f);
-        glm::vec3 f0 = glm::mix(temp, albedo, metalness);
-
-        glm::vec3 F  = fresenlschlick_roughness(n_dot_v, f0, roughness);
-        glm::vec3 kD = (glm::vec3(1.0, 1.0, 1.0) - F) * (1 - metalness);
-
-        // diffuse color
-        glm::vec3 irradiance = cubemapSampling(n, _material._cubeMap);
-        for (int i = 0; i < 3; i++)
-            irradiance[i] = pow(irradiance[i], 2.0f);
-        glm::vec3 diffuse = irradiance * kD * albedo;
-
-        // specular color
-        glm::vec r = glm::normalize(2.0f * glm::dot(v, n) * n - v);
-        glm::vec2 lut_uv = glm::vec2(n_dot_v, roughness);
-
-
-        CookTorranceBrdf = NDF * G * F / (float)(4.0 * n_dot_l * n_dot_v + 0.0001);
-
-        glm::vec3 Lo      = (kD * albedo / PI + CookTorranceBrdf) * radiance * n_dot_l;
-        glm::vec3 ambient = 0.05f * albedo;
-        color             = Lo + ambient;
-        Reinhard_mapping(color);
-    }
-
-    return false;
-}
-
 float PBRShader::roughnessSample(const glm::vec2& uv) {
     Color ret = _material._roughnessMap->get(uv.x, uv.y);
-    return ret[0];
+    return ret[2];
 }
 
 float PBRShader::metalnessSample(const glm::vec2& uv) {
     Color ret = _material._metalnessMap->get(uv.x, uv.y);
-    return ret[0];
+    return ret[2];
 }
 
 float PBRShader::occlusionSample(const glm::vec2& uv) {
     Color ret = _material._metalnessMap->get(uv.x, uv.y);
-    return ret[0];
+    return ret[2];
 }
 glm::vec3 PBRShader::emissionSample(const glm::vec2& uv) {
     Color ret = _material._metalnessMap->get(uv.x, uv.y);
     return glm::vec3(ret[0], ret[1], ret[2]);
 }
-
 
 } // namespace ABraveFish
