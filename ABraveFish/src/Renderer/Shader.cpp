@@ -73,6 +73,7 @@ void      BlinnShader::setEyePos(const glm::vec3& eyePos) { _eyePos = eyePos; }
 glm::vec3 BlinnShader::worldSpaceViewDir(glm::vec3 worldPos) { return _eyePos - worldPos; }
 
 Color BlinnShader::diffuseSample(const glm::vec2& uv) { return _material._diffuseMap->get(uv.x, uv.y); }
+Color BlinnShader::normalSample(const glm::vec2& uv) { return _material._normalMap->get(uv.x, uv.y); }
 
 int32_t BlinnShader::isInShadow(glm::vec4 depthPos, float n_dot_l) {
     // if (shader_data->enable_shadow && shader_data->shadow_map) {
@@ -197,10 +198,30 @@ shader_struct_v2f PBRShader::vertex(shader_struct_a2v* a2v) {
     _homogenousClip.in_worldcoord[a2v->_vertIndex] = v2f._worldPos;
     _homogenousClip.in_normal[a2v->_vertIndex]     = v2f._worldNormal;
     _homogenousClip.in_uv[a2v->_vertIndex]         = v2f._uv;
+
+    // tangent
+    _tangent = a2v->_tangent;
+    _bitangent = a2v->_bitangent;
+
     return v2f;
 }
 
-// 未设置光源版本
+glm::vec3 PBRShader::getNormalFromMap(shader_struct_v2f* v2f) {
+    glm::vec3 N = normalize(v2f->_worldNormal);
+    glm::vec3 T = normalize(object2WorldNormal(_tangent));
+    T           = normalize(T - dot(T, N) * N);
+    glm::vec3 B = cross(N, T);
+
+    glm::mat3 TBN(T, B, N);
+
+    Color normalColor = normalSample(v2f->_uv);
+    glm::vec3 tangentNormal(normalColor[0] * 2.f - 1.f, normalColor[1] * 2.f - 1.f, normalColor[2] * 2.f - 1.f);
+    
+    return normalize(tangentNormal * TBN);
+}
+
+
+// Learn OpenGL版本
 bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
     glm::vec3 CookTorranceBrdf;
     glm::vec3 lightPos(2.f, 1.5f, 5.f);
@@ -208,7 +229,9 @@ bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
 
     const auto& uv       = v2f->_uv;
     const auto& worldpos = v2f->_worldPos;
+    //const auto& normal   = getNormalFromMap(v2f);
     const auto& normal   = v2f->_worldNormal;
+
 
     glm::vec3 l = glm::normalize(lightPos - worldpos);
     glm::vec3 v = glm::normalize(worldSpaceViewDir(worldpos));

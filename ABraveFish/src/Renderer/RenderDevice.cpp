@@ -179,7 +179,6 @@ void interpolate_varyings(shader_struct_v2f* v2f, shader_struct_v2f* ret, int si
         dst[i]    = sum * normalizer;
     }
 }
-
 void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
     auto rdBuffer = data->_rdBuffer;
     auto zbuffer  = data->_zBuffer;
@@ -275,16 +274,17 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
     }
 }
 
-glm::mat3 cal_TBN(shader_struct_v2f* v2f, std::weak_ptr<Shader> shader) {
-    const auto& uv0 = v2f[0]._uv;
-    const auto& uv1 = v2f[1]._uv;
-    const auto& uv2 = v2f[2]._uv;
+void calTangent(Model* model, int32_t i, shader_struct_a2v* a2v) {
+    std::vector<int32_t> face = model->getFace(i);
+    // ¼ÆËãÇÐÏß
+    const auto& pos0 = model->getVert(face[0]);
+    const auto& pos1 = model->getVert(face[1]);
+    const auto& pos2 = model->getVert(face[2]);
 
-    const auto& worldPos0 = v2f[0]._worldPos;
-    const auto& worldPos1 = v2f[1]._worldPos;
-    const auto& worldPos2 = v2f[2]._worldPos;
+    const auto& uv0 = model->getUV(i, 0);
+    const auto& uv1 = model->getUV(i, 1);
+    const auto& uv2 = model->getUV(i, 2);
 
-    // calculate the difference in UV coordinate
     float x1  = uv1.x - uv0.x;
     float y1  = uv1.y - uv0.y;
     float x2  = uv2.x - uv0.x;
@@ -292,8 +292,8 @@ glm::mat3 cal_TBN(shader_struct_v2f* v2f, std::weak_ptr<Shader> shader) {
     float det = (x1 * y2 - x2 * y1);
 
     // calculate the difference in world pos
-    glm::vec3 e1 = worldPos1 - worldPos0;
-    glm::vec3 e2 = worldPos2 - worldPos0;
+    glm::vec3 e1 = pos1 - pos0;
+    glm::vec3 e2 = pos2 - pos0;
 
     // calculate tangent-axis and bitangent-axis
     glm::vec3 t = e1 * y2 + e2 * (-y1);
@@ -301,17 +301,14 @@ glm::mat3 cal_TBN(shader_struct_v2f* v2f, std::weak_ptr<Shader> shader) {
     t /= det;
     b /= det;
 
-    // Schmidt orthogonalization
-    glm::vec3 n = unit_vector(normal);
-    t      = unit_vector(t - dot(t, normal) * normal);
-    b      = unit_vector(b - dot(b, normal) * normal - dot(b, t) * t);
+    //// Schmidt orthogonalization
+    //glm::vec3 n = unit_vector(normal);
+    //t           = unit_vector(t - dot(t, normal) * normal);
+    //b           = unit_vector(b - dot(b, normal) * normal - dot(b, t) * t);
 
-    vec3 sample = texture_sample(uv, normal_map);
-    // modify the range 0 ~ 1 to -1 ~ +1
-    sample = vec3(sample[0] * 2 - 1, sample[1] * 2 - 1, sample[2] * 2 - 1);
+    a2v->_tangent = t;
+    a2v->_bitangent = b;
 
-    vec3 normal_new = t * sample[0] + b * sample[1] + normal * sample[2];
-    return normal_new;
 }
 
 void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v, bool isSkyBox) {
@@ -322,9 +319,11 @@ void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v, bool isSkyBox)
 
     for (int32_t i = 0; i < model->getFaceCount(); i++) {
         std::vector<int32_t> face = model->getFace(i);
+
+        //calTangent(model, i, a2v);
+
         for (int32_t j = 0; j < 3; j++) {
             a2v->_objPos = model->getVert(face[j]);
-
             a2v->_objNormal = model->getNormal(i, j);
             a2v->_uv        = model->getUV(i, j);
 
@@ -334,8 +333,6 @@ void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v, bool isSkyBox)
             v2fs[j] = shader->vertex(a2v);
         }
 
-        // ¼ÆËãTBN
-        cal_TBN(v2fs, shader);
         // homogenous cliping
         int32_t num_vertex = homoClipping(shader->_homogenousClip);
 

@@ -73,6 +73,10 @@ struct shader_struct_a2v {
     glm::mat4 _projection;
 
     int32_t _vertIndex;
+
+    // for tangent space
+    glm::vec3 _tangent;
+    glm::vec3 _bitangent;
 };
 
 struct shader_struct_v2f {
@@ -80,7 +84,11 @@ struct shader_struct_v2f {
     glm::vec3 _worldPos;
     glm::vec3 _worldNormal;
     glm::vec2 _uv;
-    glm::vec3 _texNormal;
+    
+    // for tangent space
+    glm::vec3 _tangent;
+    glm::vec3 _bitangent;
+
     // float     _screenDepth;
 };
 
@@ -127,6 +135,7 @@ public:
     glm::vec3 worldSpaceViewDir(glm::vec3 worldPos);
 
     Color diffuseSample(const glm::vec2& uv);
+    Color normalSample(const glm::vec2& uv);
 
     int32_t isInShadow(glm::vec4 depthPos, float n_dot_l);
 
@@ -159,9 +168,11 @@ protected:
 
 protected:
     int32_t calCubeMapUV(const glm::vec3& direction, glm::vec2& uv);
+    glm::vec3 getNormalFromMap(shader_struct_v2f* v2f);
 
 public:
-    glm::mat3 TBN;
+    glm::vec3 _tangent;
+    glm::vec3 _bitangent;
 };
 
 class SkyBoxShader : public PBRShader {
