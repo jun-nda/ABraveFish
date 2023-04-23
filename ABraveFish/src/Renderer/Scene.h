@@ -126,7 +126,7 @@ void loadIBLMap( DrawData* drawData, const char* path ) {
     }
 
     /* brdf lookup texture */
-    iblmap->_brdfLut = texture_from_file("../obj/common/BRDF_LUT.tga");
+    iblmap->_brdfLut = texture_from_file("obj/common/BRDF_LUT.tga");
 
     shader->_iblMap = iblmap;
     drawData->_iblMap = iblmap;

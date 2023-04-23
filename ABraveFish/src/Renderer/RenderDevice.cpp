@@ -147,13 +147,29 @@ float interpolateDepth(float* screenDepth, glm::vec3 weights) {
 
 // 重心坐标
 glm::vec3 Barycentric(glm::vec3* v, float x, float y) {
-    float c1 = (x * (v[1].y - v[2].y) + (v[2].x - v[1].x) * y + v[1].x * v[2].y - v[2].x * v[1].y) /
-               (v[0].x * (v[1].y - v[2].y) + (v[2].x - v[1].x) * v[0].y + v[1].x * v[2].y - v[2].x * v[1].y);
-    float c2 = (x * (v[2].y - v[0].y) + (v[0].x - v[2].x) * y + v[2].x * v[0].y - v[0].x * v[2].y) /
-               (v[1].x * (v[2].y - v[0].y) + (v[0].x - v[2].x) * v[1].y + v[2].x * v[0].y - v[0].x * v[2].y);
+    float a = (v[0].x * (v[1].y - v[2].y) + (v[2].x - v[1].x) * v[0].y + v[1].x * v[2].y - v[2].x * v[1].y);
+    float b = (v[1].x * (v[2].y - v[0].y) + (v[0].x - v[2].x) * v[1].y + v[2].x * v[0].y - v[0].x * v[2].y);
+    if (std::abs(a) <= 1e-5 || std::abs(b) <= 1e-5)
+        return glm::vec3(-1, 1, 1);
+
+    float c1 = (x * (v[1].y - v[2].y) + (v[2].x - v[1].x) * y + v[1].x * v[2].y - v[2].x * v[1].y) / a;
+    float c2 = (x * (v[2].y - v[0].y) + (v[0].x - v[2].x) * y + v[2].x * v[0].y - v[0].x * v[2].y) / b;
+
     return glm::vec3(c1, c2, 1 - c1 - c2);
 }
-
+glm::vec3 Barycentric(glm::vec3* v, glm::vec2 P) {
+    glm::vec3 s[2];
+    for (int i = 2; i--;) {
+        s[i][0] = v[2][i] - v[0][i];
+        s[i][1] = v[1][i] - v[0][i];
+        s[i][2] = v[0][i] - P[i];
+    }
+    glm::vec3 u = cross(s[0], s[1]);
+    // if (std::abs(u[2]) > 1e-5) // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
+    return glm::vec3(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
+    // return glm::vec3(-1, 1,
+    //                 1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
+}
 /*
  * for perspective correct interpolation, see
  * https://www.comp.nus.edu.sg/~lowkl/publications/lowk_persp_interp_techrep.pdf
@@ -246,8 +262,10 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
 
     for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
         for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
+            // glm::vec3 bc_screen = Barycentric(screen_coords, glm::vec2(P.x + 0.5f, P.y + 0.5f));
             glm::vec3 bc_screen = Barycentric(screen_coords, P.x + 0.5f, P.y + 0.5f);
-            if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
+
+            if (bc_screen.x <= 0.f || bc_screen.y <= 0.f || bc_screen.z <= 0.f)
                 continue;
             int32_t idx = P.x + P.y * width;
 
@@ -260,8 +278,6 @@ void rasterization(DrawData* data, shader_struct_v2f* v2fs, bool isSkyBox) {
             //变量插值
             shader_struct_v2f interpolate_v2f;
             interpolate_varyings(v2fs, &interpolate_v2f, sizeof(shader_struct_v2f), bc_screen, recip_w);
-            float Z = 1.0 / (bc_screen.x / v2fs[0]._clipPos.w + bc_screen.y / v2fs[1]._clipPos.w +
-                             bc_screen.z / v2fs[2]._clipPos.w);
 
             Color color;
             bool  discard = data->_shader->fragment(&interpolate_v2f, color);
@@ -302,13 +318,12 @@ void calTangent(Model* model, int32_t i, shader_struct_a2v* a2v) {
     b /= det;
 
     //// Schmidt orthogonalization
-    //glm::vec3 n = unit_vector(normal);
-    //t           = unit_vector(t - dot(t, normal) * normal);
-    //b           = unit_vector(b - dot(b, normal) * normal - dot(b, t) * t);
+    // glm::vec3 n = unit_vector(normal);
+    // t           = unit_vector(t - dot(t, normal) * normal);
+    // b           = unit_vector(b - dot(b, normal) * normal - dot(b, t) * t);
 
-    a2v->_tangent = t;
+    a2v->_tangent   = t;
     a2v->_bitangent = b;
-
 }
 
 void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v, bool isSkyBox) {
@@ -320,10 +335,10 @@ void vertexProcessing(DrawData* drawData, shader_struct_a2v* a2v, bool isSkyBox)
     for (int32_t i = 0; i < model->getFaceCount(); i++) {
         std::vector<int32_t> face = model->getFace(i);
 
-        //calTangent(model, i, a2v);
+        calTangent(model, i, a2v);
 
         for (int32_t j = 0; j < 3; j++) {
-            a2v->_objPos = model->getVert(face[j]);
+            a2v->_objPos    = model->getVert(face[j]);
             a2v->_objNormal = model->getNormal(i, j);
             a2v->_uv        = model->getUV(i, j);
 
@@ -459,52 +474,52 @@ float getIntersectRatio(glm::vec4& preVertex, glm::vec4& curVertex, ClipPlane pl
 }
 
 // for cube
-glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
-    glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
-                             glm::vec3({pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - P.y}));
-    // 面积为0的退化三角形？
-    if (std::abs(u.z) < 1)
-        return glm::vec3({-1, 1, 1});
-    return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
-}
+// glm::vec3 Barycentric(glm::vec3* pts, glm::vec2 P) {
+//    glm::vec3 u = glm::cross(glm::vec3({pts[2].x - pts[0].x, pts[1].x - pts[0].x, pts[0].x - P.x}),
+//                             glm::vec3({pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - P.y}));
+//    // 面积为0的退化三角形？
+//    if (std::abs(u.z) < 1)
+//        return glm::vec3({-1, 1, 1});
+//    return glm::vec3({1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z});
+//}
 
 // for cube
-void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor color) {
-    int32_t width  = image->get_width();
-    int32_t height = image->get_height();
-
-    // Attention: box must be int
-    int32_t bboxmin[2] = {width, height};
-    int32_t bboxmax[2] = {0, 0};
-    int32_t clamp[2]   = {width, height};
-    for (int32_t i = 0; i < 3; i++) {
-        bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)pts[i].x));
-        bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)pts[i].y));
-
-        bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)pts[i].x));
-        bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)pts[i].y));
-    }
-    glm::vec3 P(1.f);
-
-    float depths[3];
-    for (int32_t i = 0; i < 3; ++i) {
-        depths[i] = pts[i].z;
-    }
-    for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
-        for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
-            glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
-            if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
-                continue;
-
-            float   depth = interpolateDepth(depths, bc_screen);
-            int32_t idx   = P.x + P.y * width;
-            if (zbuffer[idx] > depth) {
-                zbuffer[idx] = depth;
-                image->set(P.x, P.y, color);
-            }
-        }
-    }
-}
+// void DrawTriangle(glm::vec3* pts, float* zbuffer, TGAImage* image, TGAColor color) {
+//    int32_t width  = image->get_width();
+//    int32_t height = image->get_height();
+//
+//    // Attention: box must be int
+//    int32_t bboxmin[2] = {width, height};
+//    int32_t bboxmax[2] = {0, 0};
+//    int32_t clamp[2]   = {width, height};
+//    for (int32_t i = 0; i < 3; i++) {
+//        bboxmin[0] = std::max(0, std::min(bboxmin[0], (int32_t)pts[i].x));
+//        bboxmin[1] = std::max(0, std::min(bboxmin[1], (int32_t)pts[i].y));
+//
+//        bboxmax[0] = std::min(clamp[0], std::max(bboxmax[0], (int32_t)pts[i].x));
+//        bboxmax[1] = std::min(clamp[1], std::max(bboxmax[1], (int32_t)pts[i].y));
+//    }
+//    glm::vec3 P(1.f);
+//
+//    float depths[3];
+//    for (int32_t i = 0; i < 3; ++i) {
+//        depths[i] = pts[i].z;
+//    }
+//    for (P.x = bboxmin[0]; P.x <= bboxmax[0]; P.x++) {
+//        for (P.y = bboxmin[1]; P.y <= bboxmax[1]; P.y++) {
+//            glm::vec3 bc_screen = Barycentric(pts, glm::vec2(P.x, P.y));
+//            if (bc_screen.x < 0.f || bc_screen.y < 0.f || bc_screen.z < 0.f)
+//                continue;
+//
+//            float   depth = interpolateDepth(depths, bc_screen);
+//            int32_t idx   = P.x + P.y * width;
+//            if (zbuffer[idx] > depth) {
+//                zbuffer[idx] = depth;
+//                image->set(P.x, P.y, color);
+//            }
+//        }
+//    }
+//}
 
 // 打印矩阵
 void PrintMatrix(glm::mat4 m) {

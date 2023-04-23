@@ -68,6 +68,8 @@ Model::Model(const char* filename, bool isSkyBox, bool vReverse)
         loadTexture(filename, "_metalness.tga", _metalnessMap);
         loadTexture(filename, "_occlusion.tga", _occlusionMap);
         loadTexture(filename, "_roughness.tga", _roughnessMap);
+        loadTexture(filename, "_emission.tga", _emissionMap);
+
         //loadTexture(filename, "_spec.tga", _specularMap);
 
     } 
@@ -96,8 +98,7 @@ glm::vec3 Model::getVert(int32_t i) { return _verts[i]; }
 
 glm::vec2 Model::getUV(int32_t iface, int32_t nvert) {
     int32_t idx = _faces[iface][nvert].y;
-    //std::cout << _uv[idx].x << " " << _uv[idx].y << std::endl;
-    return glm::vec2({_uv[idx].x * _diffuseMap.get_width(), _uv[idx].y * _diffuseMap.get_height()});
+    return glm::vec2({_uv[idx].x, _uv[idx].y});
 }
 
 glm::vec3 Model::getNormal(int32_t iface, int32_t nvert) {

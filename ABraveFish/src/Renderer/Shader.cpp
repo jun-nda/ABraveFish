@@ -124,7 +124,7 @@ glm::vec3 PBRShader::cubemapSampling(const glm::vec3& direction, CubeMap* cubeMa
     Color     color;
     int32_t   face_index = calCubeMapUV(direction, uv);
     TGAImage* map        = cubeMap->faces[face_index];
-    color                = map->get(uv.x * map->get_width(), uv.y * map->get_height());
+    color                = map->get(uv.x , uv.y);
 
     return glm::vec3(color[0], color[1], color[2]);
 }
@@ -209,15 +209,19 @@ shader_struct_v2f PBRShader::vertex(shader_struct_a2v* a2v) {
 glm::vec3 PBRShader::getNormalFromMap(shader_struct_v2f* v2f) {
     glm::vec3 N = normalize(v2f->_worldNormal);
     glm::vec3 T = normalize(object2WorldNormal(_tangent));
-    T           = normalize(T - dot(T, N) * N);
-    glm::vec3 B = cross(N, T);
+    glm::vec3 B = normalize(object2WorldNormal(_bitangent));
 
+    N = glm::normalize(N);
+    T = glm::normalize(T - glm::dot(T, N) * N);
+    B = glm::normalize(B - glm::dot(B, N) * N - glm::dot(B, T) * T);
+    B = -B;
     glm::mat3 TBN(T, B, N);
 
     Color     normalColor = normalSample(v2f->_uv);
     glm::vec3 tangentNormal(normalColor[0] * 2.f - 1.f, normalColor[1] * 2.f - 1.f, normalColor[2] * 2.f - 1.f);
 
-    return normalize(tangentNormal * TBN);
+    return normalize(TBN * tangentNormal);
+    //return -B;
 }
 
 // Learn OpenGL°æ±¾
@@ -289,7 +293,8 @@ bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
 
     const auto& uv       = v2f->_uv;
     const auto& worldpos = v2f->_worldPos;
-    const auto& normal   = v2f->_worldNormal;
+    const auto& normal   = getNormalFromMap(v2f);
+    //const auto& normal = v2f->_worldNormal;
 
     glm::vec3 v = glm::normalize(worldSpaceViewDir(worldpos));
     glm::vec3 n = glm::normalize(normal);
@@ -323,22 +328,24 @@ bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
         glm::vec2 lut_uv = glm::vec2(n_dot_v, roughness);
 
         glm::vec3 lut_sample        = brdfLutSample(lut_uv);
-        float     specular_scale    = lut_sample.z;
+        float     specular_scale    = lut_sample.x;
         float     specular_bias     = lut_sample.y;
         glm::vec3 specular          = f0 * specular_scale + glm::vec3(specular_bias, specular_bias, specular_bias);
         float     max_mip_level     = (float)(_iblMap->_mipLevels - 1);
         int       specular_miplevel = (int)(roughness * max_mip_level + 0.5f);
 
-		glm::vec3 prefilter_color = cubemapSampling(r, _iblMap->_preFilter_maps[specular_miplevel]);
+        glm::vec3 prefilter_color = cubemapSampling(r, _iblMap->_preFilter_maps[specular_miplevel]);
         for (int i = 0; i < 3; i++)
             prefilter_color[i] = pow(prefilter_color[i], 2.0f);
         specular = cwise_product(prefilter_color, specular);
 
-        color    = (diffuse + specular) + emission;
+        color = (diffuse + specular) + emission;
+        //color = Color(roughness, 0.f, 0.f);
+        //color = normal;
     }
 
     Reinhard_mapping(color);
-    //color = Color(1.f,1.f,1.f);
+    // color = Color(1.f,1.f,1.f);
 
     return false;
 }
@@ -348,21 +355,28 @@ float PBRShader::roughnessSample(const glm::vec2& uv) {
     return ret[2];
 }
 
-float PBRShader::metalnessSample(const glm::vec2& uv) {
-    Color ret = _material._metalnessMap->get(uv.x, uv.y);
+float PBRShader::metalnessSample(glm::vec2 uv) {
+    auto metalness = _material._metalnessMap;
+    uv.x           = fmod(uv.x, 1);
+    uv.y           = fmod(uv.y, 1);
+
+    Color ret = metalness->get(uv.x, uv.y);
     return ret[2];
 }
 
 float PBRShader::occlusionSample(const glm::vec2& uv) {
-    Color ret = _material._metalnessMap->get(uv.x, uv.y);
+    Color ret = _material._occlusionMap->get(uv.x, uv.y);
     return ret[2];
 }
 glm::vec3 PBRShader::emissionSample(const glm::vec2& uv) {
-    Color ret = _material._metalnessMap->get(uv.x, uv.y);
+    Color ret = _material._emissionMap->get(uv.x, uv.y);
     return glm::vec3(ret[0], ret[1], ret[2]);
 }
 
-glm::vec3 PBRShader::brdfLutSample(const glm::vec2& uv) {
+glm::vec3 PBRShader::brdfLutSample(glm::vec2& uv) {
+    auto brdf = _iblMap->_brdfLut;
+    uv.x      = fmod(uv.x, 1);
+    uv.y      = fmod(uv.y, 1);
     Color ret = _iblMap->_brdfLut->get(uv.x, uv.y);
     return glm::vec3(ret[0], ret[1], ret[2]);
 }

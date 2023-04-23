@@ -88,7 +88,7 @@ public:
     bool     flip_horizontally();
     bool     flip_vertically();
     bool     scale(int32_t w, int32_t h);
-    TGAColor get(int32_t x, int32_t y);
+    TGAColor get(float x, float y);
     bool     set(int32_t x, int32_t y, TGAColor c);
     ~TGAImage();
     TGAImage&      operator=(const TGAImage& img);

@@ -161,10 +161,10 @@ public:
 
 protected:
     float     roughnessSample(const glm::vec2& uv);
-    float     metalnessSample(const glm::vec2& uv);
+    float     metalnessSample(glm::vec2 uv);
     float     occlusionSample(const glm::vec2& uv);
     glm::vec3 emissionSample(const glm::vec2& uv);
-    glm::vec3 brdfLutSample(const glm::vec2& uv);
+    glm::vec3 brdfLutSample(glm::vec2& uv);
 
     glm::vec3 cubemapSampling(const glm::vec3& direction, CubeMap* cubeMap);
 
