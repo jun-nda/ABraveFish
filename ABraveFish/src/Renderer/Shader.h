@@ -123,6 +123,7 @@ struct DrawData {
     float*        _zBuffer;
     RenderBuffer* _rdBuffer = nullptr;
     Ref<Shader>   _shader;
+    IBLMap*       _iblMap = nullptr;
 };
 
 class BlinnShader : public Shader {
@@ -163,8 +164,11 @@ protected:
     float     metalnessSample(const glm::vec2& uv);
     float     occlusionSample(const glm::vec2& uv);
     glm::vec3 emissionSample(const glm::vec2& uv);
+    glm::vec3 brdfLutSample(const glm::vec2& uv);
 
     glm::vec3 cubemapSampling(const glm::vec3& direction, CubeMap* cubeMap);
+
+
 
 protected:
     int32_t calCubeMapUV(const glm::vec3& direction, glm::vec2& uv);
@@ -173,17 +177,15 @@ protected:
 public:
     glm::vec3 _tangent;
     glm::vec3 _bitangent;
+
+    IBLMap* _iblMap = nullptr;
 };
 
 class SkyBoxShader : public PBRShader {
 public:
     virtual shader_struct_v2f vertex(shader_struct_a2v* a2v) override;
     virtual bool              fragment(shader_struct_v2f* v2f, Color& color) override;
-
-
 };
-
-
 
 static Ref<Shader> Create() {
     switch (shaderType) {

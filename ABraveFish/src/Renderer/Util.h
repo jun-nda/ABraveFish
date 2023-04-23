@@ -18,4 +18,5 @@ unsigned int registeOpenGLTexture(uint32_t width, uint32_t height);
 void refreshOpenGLTexture(unsigned char* buffer, uint32_t width, uint32_t height);
 
 void loadTexture(std::string filename, const char* suffix, TGAImage& img);
+void loadTexture(std::string filename, const char* suffix, TGAImage* img);
 } // namespace ABraveFish

@@ -59,6 +59,8 @@ Model::Model(const char* filename, bool isSkyBox, bool vReverse)
               << _norms.size() << std::endl;
 
     if (isSkyBox) {
+        _enviromentMap = new CubeMap();
+
         loadCubeMap(filename);
     } else {
         loadTexture(filename, "_diffuse.tga", _diffuseMap);
@@ -71,7 +73,13 @@ Model::Model(const char* filename, bool isSkyBox, bool vReverse)
     } 
 }
 
-Model::~Model() {}
+Model::~Model() {
+    if (_enviromentMap) {
+        for (int i = 0; i < 6; i++)
+            delete _enviromentMap->faces[i];
+        delete _enviromentMap;
+    }
+}
 
 int32_t Model::getVertCount() { return (int32_t)_verts.size(); }
 
@@ -102,14 +110,20 @@ TGAColor Model::normalSample(glm::vec2 uv) { return _normalMap.get(uv.x, uv.y); 
 TGAColor Model::specularSample(glm::vec2 uv) { return _specularMap.get(uv.x, uv.y); }
 
 void Model::loadCubeMap(const char* filename) {
-    loadTexture(filename, "_right.tga", _enviromentMap.faces[0]);
-    loadTexture(filename, "_left.tga", _enviromentMap.faces[1]);
-    loadTexture(filename, "_top.tga", _enviromentMap.faces[2]);
-    loadTexture(filename, "_bottom.tga", _enviromentMap.faces[3]);
-    loadTexture(filename, "_back.tga", _enviromentMap.faces[4]);
-    loadTexture(filename, "_front.tga", _enviromentMap.faces[5]);
+    _enviromentMap->faces[0] = new TGAImage();
+    loadTexture(filename, "_right.tga", _enviromentMap->faces[0]);
+    _enviromentMap->faces[1] = new TGAImage();
+    loadTexture(filename, "_left.tga", _enviromentMap->faces[1]);
+    _enviromentMap->faces[2] = new TGAImage();
+    loadTexture(filename, "_top.tga", _enviromentMap->faces[2]);
+    _enviromentMap->faces[3] = new TGAImage();
+    loadTexture(filename, "_bottom.tga", _enviromentMap->faces[3]);
+    _enviromentMap->faces[4] = new TGAImage();
+    loadTexture(filename, "_back.tga", _enviromentMap->faces[4]);
+    _enviromentMap->faces[5] = new TGAImage();
+    loadTexture(filename, "_front.tga", _enviromentMap->faces[5]);
     for (int i = 0; i < 6; i++) {
-        _enviromentMap.faces[i].flip_vertically();
+        _enviromentMap->faces[i]->flip_vertically();
     }
 }
 

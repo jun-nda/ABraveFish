@@ -62,7 +62,7 @@ bool BlinnShader::fragment(shader_struct_v2f* v2f, Color& color) {
     // glm::vec4 depth_pos = _lightVP * glm::vec4(v2f->_worldPos, 1.f);
     color = ambient + (diffuse + spcular);
     // color = diffuse + spcular;
-    //color = albedo;
+    // color = albedo;
 
     // color               = Color(255, 255, 255);
     return false;
@@ -123,8 +123,8 @@ glm::vec3 PBRShader::cubemapSampling(const glm::vec3& direction, CubeMap* cubeMa
     glm::vec2 uv;
     Color     color;
     int32_t   face_index = calCubeMapUV(direction, uv);
-    TGAImage& map        = _material._cubeMap->faces[face_index];
-    color                = map.get(uv.x * map.get_width(), uv.y * map.get_height());
+    TGAImage* map        = cubeMap->faces[face_index];
+    color                = map->get(uv.x * map->get_width(), uv.y * map->get_height());
 
     return glm::vec3(color[0], color[1], color[2]);
 }
@@ -200,7 +200,7 @@ shader_struct_v2f PBRShader::vertex(shader_struct_a2v* a2v) {
     _homogenousClip.in_uv[a2v->_vertIndex]         = v2f._uv;
 
     // tangent
-    _tangent = a2v->_tangent;
+    _tangent   = a2v->_tangent;
     _bitangent = a2v->_bitangent;
 
     return v2f;
@@ -214,124 +214,134 @@ glm::vec3 PBRShader::getNormalFromMap(shader_struct_v2f* v2f) {
 
     glm::mat3 TBN(T, B, N);
 
-    Color normalColor = normalSample(v2f->_uv);
+    Color     normalColor = normalSample(v2f->_uv);
     glm::vec3 tangentNormal(normalColor[0] * 2.f - 1.f, normalColor[1] * 2.f - 1.f, normalColor[2] * 2.f - 1.f);
-    
+
     return normalize(tangentNormal * TBN);
 }
 
-
 // Learn OpenGL°æ±¾
-bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
-    glm::vec3 CookTorranceBrdf;
-    glm::vec3 lightPos(2.f, 1.5f, 5.f);
-    glm::vec3 ligthtColor(1.f, 1.f, 1.f);
-
-    const auto& uv       = v2f->_uv;
-    const auto& worldpos = v2f->_worldPos;
-    //const auto& normal   = getNormalFromMap(v2f);
-    const auto& normal   = v2f->_worldNormal;
-
-
-    glm::vec3 l = glm::normalize(lightPos - worldpos);
-    glm::vec3 v = glm::normalize(worldSpaceViewDir(worldpos));
-    glm::vec3 n = glm::normalize(normal);
-    glm::vec3 h = glm::normalize(l + v);
-
-    float n_dot_l = std::max(dot(n, l), 0.f);
-    if (n_dot_l > 0.f) {
-        float n_dot_v = std::max(dot(n, v), 0.f);
-        float n_dot_h = std::max(dot(n, h), 0.f);
-        float h_dot_v = std::max(dot(h, v), 0.f);
-
-        // get albedo
-        Color     albed = diffuseSample(uv);
-        glm::vec3 albedo(albed[0], albed[1], albed[2]);
-
-        float roughness = roughnessSample(uv);
-        float metalness = metalnessSample(uv);
-        float occlusion = occlusionSample(uv);
-
-        float distance    = (lightPos - worldpos).length();
-        float attenuation = 1.0 / (distance * distance);
-
-        glm::vec3 radiance = ligthtColor * attenuation;
-
-        glm::vec3 temp(0.04, 0.04, 0.04);
-        glm::vec3 f0 = glm::mix(temp, albedo, metalness);
-
-        float     NDF = distributionGGX(n_dot_h, roughness);
-        float     G   = geometry_Smith(n_dot_v, n_dot_l, roughness);
-        glm::vec3 F   = fresenlschlick(h_dot_v, f0);
-
-        glm::vec3 numerator   = NDF * G * F;
-        float     denominator = 4.0 * n_dot_v * n_dot_l + 0.0001; // +0.0001 to prevent divide by zero
-        glm::vec3 specular    = numerator / denominator;
-
-        glm::vec3 KS = F;
-        glm::vec3 kD = (glm::vec3(1.0f) - F) * (1 - metalness);
-
-        glm::vec3 Lo      = (kD * albedo / PI + specular) * radiance * n_dot_l;
-        glm::vec3 ambient = 0.05f * albedo * occlusion;
-        color             = Lo + ambient;
-        Reinhard_mapping(color);
-    }
-
-    return false;
-}
-
 // bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
 //    glm::vec3 CookTorranceBrdf;
-//    glm::vec3 lightPos(2.f, 1.5f, 5.f);
-//    glm::vec3 radiance(3.f, 3.f, 3.f);
+//    glm::vec3 lightPos(-2.f, -1.5f, 2.f);
+//    glm::vec3 ligthtColor(1.f, 1.f, 1.f);
 //
 //    const auto& uv       = v2f->_uv;
 //    const auto& worldpos = v2f->_worldPos;
+//    //const auto& normal   = getNormalFromMap(v2f);
 //    const auto& normal   = v2f->_worldNormal;
 //
+//
+//    glm::vec3 l = glm::normalize(lightPos - worldpos);
 //    glm::vec3 v = glm::normalize(worldSpaceViewDir(worldpos));
 //    glm::vec3 n = glm::normalize(normal);
+//    glm::vec3 h = glm::normalize(l + v);
 //
-//    float n_dot_v = std::max(dot(n, v), 0.f);
-//    if (n_dot_v > 0.f) {
-//
-//        float roughness = roughnessSample(uv);
-//        float metalness = metalnessSample(uv);
-//        float occlusion = occlusionSample(uv);
-//        glm::vec3  emission  = emissionSample(uv);
+//    float n_dot_l = std::max(dot(n, l), 0.f);
+//    if (n_dot_l > 0.f) {
+//        float n_dot_v = std::max(dot(n, v), 0.f);
+//        float n_dot_h = std::max(dot(n, h), 0.f);
+//        float h_dot_v = std::max(dot(h, v), 0.f);
 //
 //        // get albedo
 //        Color     albed = diffuseSample(uv);
 //        glm::vec3 albedo(albed[0], albed[1], albed[2]);
 //
+//        float roughness = roughnessSample(uv);
+//        float metalness = metalnessSample(uv);
+//        float occlusion = occlusionSample(uv);
+//
+//        float distance    = (lightPos - worldpos).length();
+//        float attenuation = 1.0 / (distance * distance);
+//
+//        glm::vec3 radiance = ligthtColor * attenuation;
+//
 //        glm::vec3 temp(0.04, 0.04, 0.04);
-//        glm::vec3 temp2 = glm::vec3(1.0f, 1.0f, 1.0f);
 //        glm::vec3 f0 = glm::mix(temp, albedo, metalness);
 //
-//        glm::vec3 F  = fresenlschlick_roughness(n_dot_v, f0, roughness);
-//        glm::vec3 kD = (glm::vec3(1.0, 1.0, 1.0) - F) * (1 - metalness);
+//        float     NDF = distributionGGX(n_dot_h, roughness);
+//        float     G   = geometry_Smith(n_dot_v, n_dot_l, roughness);
+//        glm::vec3 F   = fresenlschlick(h_dot_v, f0);
 //
-//        // diffuse color
-//        glm::vec3 irradiance = cubemapSampling(n, _material._cubeMap);
-//        for (int i = 0; i < 3; i++)
-//            irradiance[i] = pow(irradiance[i], 2.0f);
-//        glm::vec3 diffuse = irradiance * kD * albedo;
+//        glm::vec3 numerator   = NDF * G * F;
+//        float     denominator = 4.0 * n_dot_v * n_dot_l + 0.0001; // +0.0001 to prevent divide by zero
+//        glm::vec3 specular    = numerator / denominator;
 //
-//        // specular color
-//        glm::vec r = glm::normalize(2.0f * glm::dot(v, n) * n - v);
-//        glm::vec2 lut_uv = glm::vec2(n_dot_v, roughness);
+//        glm::vec3 KS = F;
+//        glm::vec3 kD = (glm::vec3(1.0f) - F) * (1 - metalness);
 //
-//
-//        CookTorranceBrdf = NDF * G * F / (float)(4.0 * n_dot_l * n_dot_v + 0.0001);
-//
-//        glm::vec3 Lo      = (kD * albedo / PI + CookTorranceBrdf) * radiance * n_dot_l;
-//        glm::vec3 ambient = 0.05f * albedo;
+//        glm::vec3 Lo      = (kD * albedo / PI + specular) * radiance * n_dot_l;
+//        glm::vec3 ambient = 0.05f * albedo * occlusion;
 //        color             = Lo + ambient;
 //        Reinhard_mapping(color);
 //    }
 //
 //    return false;
 //}
+glm::vec3 cwise_product(const glm::vec3& a, const glm::vec3& b) {
+    return glm::vec3(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
+}
+// IBL
+bool PBRShader::fragment(shader_struct_v2f* v2f, Color& color) {
+    glm::vec3 CookTorranceBrdf;
+    glm::vec3 lightPos(2.f, 1.5f, 5.f);
+    glm::vec3 radiance(3.f, 3.f, 3.f);
+
+    const auto& uv       = v2f->_uv;
+    const auto& worldpos = v2f->_worldPos;
+    const auto& normal   = v2f->_worldNormal;
+
+    glm::vec3 v = glm::normalize(worldSpaceViewDir(worldpos));
+    glm::vec3 n = glm::normalize(normal);
+
+    float n_dot_v = std::max(dot(n, v), 0.f);
+    if (n_dot_v > 0.f) {
+        float     roughness = roughnessSample(uv);
+        float     metalness = metalnessSample(uv);
+        float     occlusion = occlusionSample(uv);
+        glm::vec3 emission  = emissionSample(uv);
+
+        // get albedo
+        Color     albed = diffuseSample(uv);
+        glm::vec3 albedo(albed[0], albed[1], albed[2]);
+
+        glm::vec3 temp(0.04, 0.04, 0.04);
+        glm::vec3 f0 = glm::mix(temp, albedo, metalness);
+
+        glm::vec3 F  = fresenlschlick_roughness(n_dot_v, f0, roughness);
+        glm::vec3 kD = (glm::vec3(1.0, 1.0, 1.0) - F) * (1 - metalness);
+
+        // diffuse color
+        CubeMap*  irradianceMap = _iblMap->_irradianceMap;
+        glm::vec3 irradiance    = cubemapSampling(n, irradianceMap);
+        for (int i = 0; i < 3; i++)
+            irradiance[i] = pow(irradiance[i], 2.0f);
+        glm::vec3 diffuse = irradiance * kD * albedo;
+
+        // specular color
+        glm::vec  r      = glm::normalize(2.0f * glm::dot(v, n) * n - v);
+        glm::vec2 lut_uv = glm::vec2(n_dot_v, roughness);
+
+        glm::vec3 lut_sample        = brdfLutSample(lut_uv);
+        float     specular_scale    = lut_sample.z;
+        float     specular_bias     = lut_sample.y;
+        glm::vec3 specular          = f0 * specular_scale + glm::vec3(specular_bias, specular_bias, specular_bias);
+        float     max_mip_level     = (float)(_iblMap->_mipLevels - 1);
+        int       specular_miplevel = (int)(roughness * max_mip_level + 0.5f);
+
+		glm::vec3 prefilter_color = cubemapSampling(r, _iblMap->_preFilter_maps[specular_miplevel]);
+        for (int i = 0; i < 3; i++)
+            prefilter_color[i] = pow(prefilter_color[i], 2.0f);
+        specular = cwise_product(prefilter_color, specular);
+
+        color    = (diffuse + specular) + emission;
+    }
+
+    Reinhard_mapping(color);
+    //color = Color(1.f,1.f,1.f);
+
+    return false;
+}
 
 float PBRShader::roughnessSample(const glm::vec2& uv) {
     Color ret = _material._roughnessMap->get(uv.x, uv.y);
@@ -349,6 +359,11 @@ float PBRShader::occlusionSample(const glm::vec2& uv) {
 }
 glm::vec3 PBRShader::emissionSample(const glm::vec2& uv) {
     Color ret = _material._metalnessMap->get(uv.x, uv.y);
+    return glm::vec3(ret[0], ret[1], ret[2]);
+}
+
+glm::vec3 PBRShader::brdfLutSample(const glm::vec2& uv) {
+    Color ret = _iblMap->_brdfLut->get(uv.x, uv.y);
     return glm::vec3(ret[0], ret[1], ret[2]);
 }
 

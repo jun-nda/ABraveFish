@@ -9,7 +9,13 @@
 namespace ABraveFish {
 
 struct CubeMap {
-    TGAImage faces[6];
+    TGAImage* faces[6];
+};
+struct IBLMap {
+    int32_t   _mipLevels;
+    CubeMap*  _irradianceMap;
+    CubeMap*  _preFilter_maps[15];
+    TGAImage* _brdfLut;
 };
 
 class Model {
@@ -38,8 +44,7 @@ public:
     TGAImage _roughnessMap;
     TGAImage _emissionMap;
 
-
-    CubeMap _enviromentMap;
+    CubeMap* _enviromentMap = nullptr;
 
 private:
     void loadCubeMap(const char* filename);
