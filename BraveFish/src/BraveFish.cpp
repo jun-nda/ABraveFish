@@ -39,6 +39,8 @@ public:
         m_BuildScene[0] = buildQiyanaScene;
         m_BuildScene[1] = buldFuhuaScene;
         m_BuildScene[2] = buldHelmetScene;
+
+        m_SceneIndex = rand() % 3;
     }
 
     virtual void OnUpdate(float ts) override {
@@ -172,7 +174,7 @@ private:
 
     // bulid scene
     buildSceneFunc m_BuildScene[MAX_SCENENUM];
-    int32_t m_SceneIndex = 2;
+    int32_t m_SceneIndex = 0;
 };
 
 ABraveFish::Application* ABraveFish::CreateApplication() {
